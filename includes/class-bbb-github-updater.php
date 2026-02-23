@@ -5,12 +5,6 @@
  * Prüft ob auf GitHub eine neuere Plugin-Version verfügbar ist
  * und integriert sich in das WordPress-Update-System.
  *
- * Funktionsweise:
- *   1. Hook in site_transient_update_plugins → prüft GitHub Releases API
- *   2. Vergleicht GitHub-Tag (z.B. v1.5.1) mit lokaler Plugin-Version
- *   3. Zeigt Update-Hinweis im Dashboard + Plugin-Liste
- *   4. Download-Link zeigt auf die Zip-Datei aus dem GitHub Release
- *
  * Cache: 12h via Transient (reduziert API-Calls, GitHub Rate Limit = 60/h ohne Auth)
  *
  * @since 1.1.0
@@ -22,18 +16,12 @@ if ( class_exists( 'BBB_GitHub_Updater' ) ) return;
 
 class BBB_GitHub_Updater {
 
-    private string $plugin_file;     // z.B. 'bbb-live-tables/bbb-live-tables.php'
-    private string $plugin_slug;     // z.B. 'bbb-live-tables'
-    private string $github_owner;    // z.B. 'OliEder'
-    private string $github_repo;     // z.B. 'bbb-live-tables'
-    private string $current_version; // z.B. '1.5.0'
+    private string $plugin_file;
+    private string $plugin_slug;
+    private string $github_owner;
+    private string $github_repo;
+    private string $current_version;
 
-    /**
-     * @param string $plugin_file     Plugin-Basename (plugin_basename(__FILE__))
-     * @param string $github_owner    GitHub Username/Organisation
-     * @param string $github_repo     GitHub Repository-Name
-     * @param string $current_version Aktuelle Plugin-Version
-     */
     public function __construct( string $plugin_file, string $github_owner, string $github_repo, string $current_version ) {
         $this->plugin_file     = $plugin_file;
         $this->plugin_slug     = dirname( $plugin_file );
@@ -46,10 +34,6 @@ class BBB_GitHub_Updater {
         add_filter( 'upgrader_post_install', [ $this, 'after_install' ], 10, 3 );
     }
 
-    /**
-     * WordPress fragt regelmäßig nach Plugin-Updates.
-     * Hier hängen wir uns ein und prüfen GitHub.
-     */
     public function check_update( $transient ): mixed {
         if ( empty( $transient->checked ) ) return $transient;
 
@@ -67,7 +51,6 @@ class BBB_GitHub_Updater {
                 'banners'     => [],
             ];
         } else {
-            // Kein Update → aus no_update melden (verhindert "Unbekanntes Plugin" Warnung)
             $transient->no_update[ $this->plugin_file ] = (object) [
                 'slug'        => $this->plugin_slug,
                 'plugin'      => $this->plugin_file,
@@ -79,9 +62,6 @@ class BBB_GitHub_Updater {
         return $transient;
     }
 
-    /**
-     * Plugin-Info Dialog (Klick auf "Details ansehen" im Update-Hinweis).
-     */
     public function plugin_info( $result, string $action, object $args ): mixed {
         if ( $action !== 'plugin_information' ) return $result;
         if ( ( $args->slug ?? '' ) !== $this->plugin_slug ) return $result;
@@ -107,12 +87,6 @@ class BBB_GitHub_Updater {
         ];
     }
 
-    /**
-     * Nach der Installation: Ordnername korrigieren.
-     *
-     * GitHub Zips haben oft den Ordnernamen "repo-main" oder "repo-v1.5.0".
-     * WordPress erwartet aber exakt den Plugin-Slug als Ordnernamen.
-     */
     public function after_install( $response, array $hook_extra, array $result ): mixed {
         if ( ! isset( $hook_extra['plugin'] ) || $hook_extra['plugin'] !== $this->plugin_file ) {
             return $result;
@@ -128,7 +102,6 @@ class BBB_GitHub_Updater {
             $result['destination'] = $proper_dir;
         }
 
-        // Plugin reaktivieren
         if ( is_plugin_active( $this->plugin_file ) ) {
             activate_plugin( $this->plugin_file );
         }
@@ -136,11 +109,6 @@ class BBB_GitHub_Updater {
         return $result;
     }
 
-    /**
-     * GitHub Release-Info laden (mit 12h Cache).
-     *
-     * @return array|null { version, download_url, changelog, name, description, published_at }
-     */
     private function get_remote_info(): ?array {
         $transient_key = "bbb_github_update_{$this->plugin_slug}";
         $cached = get_transient( $transient_key );
@@ -161,7 +129,6 @@ class BBB_GitHub_Updater {
         ] );
 
         if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
-            // Bei Fehler kurz cachen (1h) um API nicht zu spammen
             set_transient( $transient_key, null, HOUR_IN_SECONDS );
             return null;
         }
@@ -169,10 +136,8 @@ class BBB_GitHub_Updater {
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
         if ( empty( $data['tag_name'] ) ) return null;
 
-        // Version aus Tag extrahieren: "v1.5.0" → "1.5.0"
         $version = ltrim( $data['tag_name'], 'v' );
 
-        // Download-URL: Zip-Asset aus Release oder Source-Zip als Fallback
         $download_url = '';
         foreach ( $data['assets'] ?? [] as $asset ) {
             if ( str_ends_with( $asset['name'], '.zip' ) ) {
@@ -193,7 +158,6 @@ class BBB_GitHub_Updater {
             'published_at' => $data['published_at'] ?? '',
         ];
 
-        // 12h cachen
         set_transient( $transient_key, $info, 12 * HOUR_IN_SECONDS );
 
         return $info;

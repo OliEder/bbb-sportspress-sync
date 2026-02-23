@@ -12,7 +12,7 @@ Synchronisiert Vereinsdaten aus der {url-bbb}[basketball-bund.net] REST API in S
 image::https://img.shields.io/badge/WordPress-6.0+-blue?logo=wordpress[WordPress]
 image::https://img.shields.io/badge/PHP-8.1+-purple?logo=php[PHP]
 image::https://img.shields.io/badge/Lizenz-GPL--2.0+-green[License]
-image::https://img.shields.io/badge/Version-1.0.0-orange[Version]
+image::https://img.shields.io/github/v/release/OliEder/bbb-sportspress-sync?label=Version&color=orange[Version]
 
 toc::[]
 
@@ -26,6 +26,7 @@ toc::[]
 * **Spieler-Import** – Boxscore-Statistiken mit konfigurierbarem Filter (nur eigene / alle Teams)
 * **Reconciliation** – Verschwundene Spiele werden automatisch entfernt
 * **WP-Cron** – Konfigurierbarer Auto-Sync (Standard: alle 6 Stunden)
+* **Auto-Update** – Update-Benachrichtigungen direkt im WordPress-Dashboard (via GitHub Releases)
 * **Datenschutz** – Manuelle SP-Änderungen werden bei Updates nie überschrieben
 * **BBB Live Tables Integration** – Speist SP-Daten (Logos, Links, Farben) via Filter Hooks in {url-tables}[BBB Live Tables] ein
 
@@ -64,25 +65,31 @@ git clone https://github.com/OliEder/bbb-sportspress-sync.git
 
 Beide Plugins im WordPress-Admin aktivieren.
 
+=== Updates
+
+Nach der Installation prüft das Plugin automatisch auf neue Versionen via GitHub Releases. Updates erscheinen wie gewohnt unter **Dashboard → Aktualisierungen** und können mit einem Klick installiert werden.
+
 
 == Schnellstart
 
 Nach der Aktivierung: **SportsPress → BBB Sync**
 
-. **Einstellungen-Tab:** Club-ID eintragen (z.B. `1234`) +
+. **Tab „Einstellungen":** Club-ID eintragen (z.B. `4468`) +
   _(URL deiner Vereinsseite: `basketball-bund.net/club/id/XXXX`)_
-. **Team-Discovery-Tab:** "Teams erkennen" klicken → eigene Teams mit Häkchen aktivieren → Speichern
-. **Dashboard-Tab:** "Jetzt synchronisieren" klicken
+. **Tab „Team-Discovery":** „Teams erkennen" klicken → eigene Teams mit Häkchen aktivieren → Speichern
+. **Tab „Dashboard":** „Jetzt synchronisieren" klicken
 . Fertig! Teams, Spielplan, Ergebnisse und Venues sind in SportsPress.
 
 
 == Admin-Oberfläche
 
-Die Verwaltung erfolgt unter **SportsPress → BBB Sync** mit vier Tabs.
+Die Verwaltung erfolgt unter **SportsPress → BBB Sync** mit sechs Tabs.
 
 === Dashboard
 
 Status-Übersicht: Club-ID, registrierte Teams, Spieler-Import-Modus, letzter Sync mit Statistik. Manueller Sync-Button mit AJAX-Fortschrittsanzeige. Shortcode-Referenzkarte für BBB Live Tables.
+
+**Schnellaktionen:** Tabellen-Cache leeren (Transients für Live Tables + Brackets) und Sync-Lock lösen (bei verklemmtem Sync-Prozess).
 
 === Team-Discovery
 
@@ -97,19 +104,27 @@ Teams per Club-ID aus der BBB-API erkennen. Einzeln aktivierbar/deaktivierbar. N
 | Club-ID | – | BBB-Vereins-ID (Pflichtfeld)
 | Zeitraum (Tage) | 365 | Sync-Horizont (30–730)
 | Auto-Sync (h) | 6 | Cron-Intervall (1–168)
+| Ergebnis-Felder | pts | Komma-getrennte SP-Result-Slugs
 | Spieler aus Boxscore | Aus | Spieler-Import aktivieren
 | Nur eigene Spieler | An | Nur Spieler eigener Teams importieren (DSGVO-empfohlen)
+| Statistik-Mapping | Standard | Zuordnung BBB → SportsPress Performance-Slugs
 |===
 
-==== Wartung
+=== Cleanup
 
-* **Tabellen-Cache leeren** – Alle Live-Tabellen- und Bracket-Caches löschen
-* **Boxscore-Flags reset** – Spieler-Statistiken beim nächsten Sync neu importieren
-* **Sync-Lock lösen** – Verklemmten Sync-Lock aufheben
+Reparatur- und Reset-Aktionen mit ausführlichen Beschreibungen:
+
+* **Boxscore-Flags zurücksetzen** – Erzwingt erneuten Import aller Spieler-Statistiken beim nächsten Sync. Nötig z.B. bei unvollständigen Statistiken, geändertem Mapping, gelöschten Spielern oder API-Korrekturen.
+* **Ergebnis-Keys reparieren** – Kopiert Ergebnisse in die konfigurierten Result-Felder. Hilft bei „N/A"-Anzeigen, 0:0 in Tabellen oder nach Änderung der Ergebnis-Felder.
+* **Full Reset** – Entfernt alle synchronisierten Daten (Teams, Events, Spieler, Venues).
 
 === Logs
 
 Filterbares Log (Alle / Fehler / Warnungen / Info) mit farblicher Hervorhebung.
+
+=== ❤️ Support
+
+Donation-Links (Buy Me a Coffee, Ko-fi), GitHub Issues für Bugmeldungen und Feature-Wünsche, Verweis auf das Schwester-Plugin BBB Live Tables.
 
 
 == Sync-Architektur
@@ -215,9 +230,10 @@ bbb-sportspress-sync/
 │   ├── class-bbb-player-sync.php          # Spieler-Import aus Boxscore
 │   ├── class-bbb-logo-handler.php         # Team-Logo Download + WP Media Library
 │   ├── class-bbb-cron.php                 # WP-Cron Handler
-│   ├── class-bbb-admin-page.php           # Admin UI (4 Tabs)
+│   ├── class-bbb-admin-page.php           # Admin UI (6 Tabs)
 │   ├── class-bbb-tables-integration.php   # Filter-Callbacks für BBB Live Tables
-│   └── class-bbb-goodlayers-bracket.php   # Goodlayers PB Elemente (SP-angereichert)
+│   ├── class-bbb-goodlayers-bracket.php   # Goodlayers PB Elemente (SP-angereichert)
+│   └── class-bbb-github-updater.php       # GitHub Release Update Checker
 └── docs/
     └── arc42-bbb-sportspress-sync.adoc    # Architekturdokumentation
 ----
