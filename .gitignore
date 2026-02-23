@@ -1,0 +1,33 @@
+# macOS
+.DS_Store
+._*
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# WordPress
+wp-config.php
+wp-content/uploads/
+wp-content/upgrade/
+
+# Node (falls mal Build-Tooling dazukommt)
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+debug.log
+
+# Archives
+*.zip
+*.tar.gz
+
+# Backup files
+*.bak
+
+# Chat handoff files (development only)
+CHAT-HANDOFF-*.md
+PROJECT-STATUS.md

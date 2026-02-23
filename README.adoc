@@ -1,0 +1,262 @@
+= BBB SportsPress Sync
+:author: Oliver-Marcus Eder
+:url-repo: https://github.com/OliEder/bbb-sportspress-sync
+:url-tables: https://github.com/OliEder/bbb-live-tables
+:url-bbb: https://www.basketball-bund.net
+:icons: font
+:toc: macro
+:toclevels: 2
+
+Synchronisiert Vereinsdaten aus der {url-bbb}[basketball-bund.net] REST API in SportsPress – Teams, Spielplan, Ergebnisse, Spieler, Statistiken und Spielorte.
+
+image::https://img.shields.io/badge/WordPress-6.0+-blue?logo=wordpress[WordPress]
+image::https://img.shields.io/badge/PHP-8.1+-purple?logo=php[PHP]
+image::https://img.shields.io/badge/Lizenz-GPL--2.0+-green[License]
+image::https://img.shields.io/badge/Version-1.0.0-orange[Version]
+
+toc::[]
+
+== Features
+
+* **Team-Discovery** – Eigene Teams automatisch über Club-ID erkennen und registrieren
+* **Team-Sync** – Mannschaften (eigene + Gegner) mit Logos, Altersklasse/Geschlecht und Metadaten
+* **Event-Sync** – Spielplan, Ergebnisse, Status (abgesagt, Verzicht, unbestätigt)
+* **Liga-Spielplan** – Alle Spiele einer Liga, nicht nur eigene Begegnungen
+* **Venue-Sync** – Spielfelder mit Adressen und Geocoding (Nominatim/OSM)
+* **Spieler-Import** – Boxscore-Statistiken mit konfigurierbarem Filter (nur eigene / alle Teams)
+* **Reconciliation** – Verschwundene Spiele werden automatisch entfernt
+* **WP-Cron** – Konfigurierbarer Auto-Sync (Standard: alle 6 Stunden)
+* **Datenschutz** – Manuelle SP-Änderungen werden bei Updates nie überschrieben
+* **BBB Live Tables Integration** – Speist SP-Daten (Logos, Links, Farben) via Filter Hooks in {url-tables}[BBB Live Tables] ein
+
+== Für wen?
+
+Für deutsche Basketballvereine, die SportsPress für ihre Website nutzen und den Spielplan, Ergebnisse und Statistiken automatisch aus basketball-bund.net importieren möchten – statt alles manuell zu pflegen.
+
+
+== Voraussetzungen
+
+* WordPress ≥ 6.0
+* PHP ≥ 8.1 (empfohlen: 8.3, *nicht* 8.5 – SportsPress Pro + Goodlayers crashen)
+* https://www.themeboy.com/sportspress/[SportsPress] oder SportsPress Pro
+* {url-tables}[BBB Live Tables] – für Liga-Tabellen und Turnier-Brackets
+
+IMPORTANT: Ohne BBB Live Tables fehlen Liga-Tabellen und Turnier-Brackets. SportsPress bringt eigene Tabellen mit, diese benötigen aber vollständige Ergebnisse aller Liga-Teams.
+
+
+== Installation
+
+=== Manuell (ZIP)
+
+. {url-tables}/releases[BBB Live Tables] installieren und aktivieren
+. ZIP-Datei von der {url-repo}/releases[Releases-Seite] herunterladen
+. WordPress Admin → Plugins → Installieren → Plugin hochladen → ZIP auswählen
+. Plugin aktivieren
+
+=== Via Git
+
+[source,bash]
+----
+cd wp-content/plugins/
+git clone https://github.com/OliEder/bbb-live-tables.git
+git clone https://github.com/OliEder/bbb-sportspress-sync.git
+----
+
+Beide Plugins im WordPress-Admin aktivieren.
+
+
+== Schnellstart
+
+Nach der Aktivierung: **SportsPress → BBB Sync**
+
+. **Einstellungen-Tab:** Club-ID eintragen (z.B. `4468`) +
+  _(URL deiner Vereinsseite: `basketball-bund.net/club/id/XXXX`)_
+. **Team-Discovery-Tab:** "Teams erkennen" klicken → eigene Teams mit Häkchen aktivieren → Speichern
+. **Dashboard-Tab:** "Jetzt synchronisieren" klicken
+. Fertig! Teams, Spielplan, Ergebnisse und Venues sind in SportsPress.
+
+
+== Admin-Oberfläche
+
+Die Verwaltung erfolgt unter **SportsPress → BBB Sync** mit vier Tabs.
+
+=== Dashboard
+
+Status-Übersicht: Club-ID, registrierte Teams, Spieler-Import-Modus, letzter Sync mit Statistik. Manueller Sync-Button mit AJAX-Fortschrittsanzeige. Shortcode-Referenzkarte für BBB Live Tables.
+
+=== Team-Discovery
+
+Teams per Club-ID aus der BBB-API erkennen. Einzeln aktivierbar/deaktivierbar. Neue Teams mit 🆕, bereits registrierte mit ✅ markiert.
+
+=== Einstellungen
+
+[cols="1,1,3",options="header"]
+|===
+| Einstellung | Default | Beschreibung
+
+| Club-ID | – | BBB-Vereins-ID (Pflichtfeld)
+| Zeitraum (Tage) | 365 | Sync-Horizont (30–730)
+| Auto-Sync (h) | 6 | Cron-Intervall (1–168)
+| Spieler aus Boxscore | Aus | Spieler-Import aktivieren
+| Nur eigene Spieler | An | Nur Spieler eigener Teams importieren (DSGVO-empfohlen)
+|===
+
+==== Wartung
+
+* **Tabellen-Cache leeren** – Alle Live-Tabellen- und Bracket-Caches löschen
+* **Boxscore-Flags reset** – Spieler-Statistiken beim nächsten Sync neu importieren
+* **Sync-Lock lösen** – Verklemmten Sync-Lock aufheben
+
+=== Logs
+
+Filterbares Log (Alle / Fehler / Warnungen / Info) mit farblicher Hervorhebung.
+
+
+== Sync-Architektur
+
+=== Drei-Phasen-Sync
+
+**Phase 1: Team-Discovery** (manuell, 1–2x pro Saison) +
+Club-ID → BBB-API → Eigene Teams identifizieren → In Admin auswählen
+
+**Phase 2: Match-Sync** (automatisch, pro eigenem Team) +
+Matches laden → SP-Teams anlegen → SP-Events anlegen → Venues geocoden → Spieler importieren → Reconciliation
+
+**Phase 3: Liga-Spielplan** (automatisch, pro Liga) +
+Alle Matches einer Liga laden → Auch Spiele ohne eigene Beteiligung → SP-Table Post anlegen
+
+=== Datenmodell-Mapping
+
+[cols="1,1,2",options="header"]
+|===
+| BBB Entity | SportsPress | Primärer Key
+
+| Team | `sp_team` | `_bbb_team_permanent_id`
+| Match | `sp_event` | `_bbb_match_id`
+| Spieler | `sp_player` | `_bbb_person_id`
+| Liga | `sp_league` (Tax) | `_bbb_liga_id`
+| Saison | `sp_season` (Tax) | Slug: `2025-2026`
+| Spielfeld | `sp_venue` (Tax) | `_bbb_spielfeld_id`
+| Tabelle | `sp_table` | `_bbb_liga_id`
+|===
+
+=== Datenschutz bei Updates
+
+[cols="1,2",options="header"]
+|===
+| Was | Verhalten
+
+| Post-Titel | Nur bei Erstanlage/Adoption. NIE bei Update überschrieben.
+| Post-Content | NIE überschrieben.
+| SP-Meta (`sp_abbreviation`, `sp_number`) | Nur wenn aktuell leer.
+| BBB-Meta (`_bbb_*`) | Immer aktualisiert (IDs + Zuordnungen).
+| Post-Autor | Nur wenn Autor = Sync-User. Manuelle Edits bleiben.
+|===
+
+
+== Spieler-Import
+
+Boxscore-Statistiken von abgeschlossenen Spielen. Aktivierung unter Einstellungen.
+
+=== Stat-Mapping
+
+[cols="1,1,2",options="header"]
+|===
+| BBB | SportsPress | Beschreibung
+
+| `pts` | `pts` | Punkte
+| `ro` / `rd` / `rt` | `oreb` / `dreb` / `reb` | Rebounds
+| `as` | `ast` | Assists
+| `st` / `to` / `bs` | `stl` / `to` / `blk` | Steals, Turnovers, Blocks
+| `fouls` | `pf` | Fouls
+| `eff` | `eff` | Effizienz
+| `esz` | `min` | Einsatzzeit
+| `wt` / `twoPoints` / `threePoints` / `onePoints` | `fgm/fga` / `twom/twoa` / `3pm/3pa` / `ftm/fta` | Wurfstatistiken
+|===
+
+Anonymisierte Spieler (`playerId: 0`, häufig bei U8–U14) werden übersprungen.
+
+=== Meta-Boxen
+
+Für manuelle Zuordnung ohne vorherigen Sync stehen Meta-Boxen bereit:
+
+* **sp_player** Edit-Screen: `_bbb_person_id` (BBB Person-ID)
+* **sp_team** Edit-Screen: `_bbb_team_permanent_id` (BBB Team Permanent-ID)
+
+
+== BBB Live Tables Integration
+
+Wenn {url-tables}[BBB Live Tables] aktiv ist, registriert das Sync-Plugin automatisch 6 Filter Hooks:
+
+[cols="2,3",options="header"]
+|===
+| Filter | Was das Sync-Plugin liefert
+
+| `bbb_table_team_logo_url` | SP Featured Image statt BBB-API-Logo
+| `bbb_table_team_url` | Klickbarer Link zum SP-Team-Profil
+| `bbb_table_event_url` | Klickbarer Link zum SP-Event
+| `bbb_table_theme_colors` | Farben aus SportsPress Frontend CSS
+| `bbb_table_own_team_ids` | Eigene Teams aus SP-Meta
+| `bbb_table_liga_options` | Liga-Dropdown im Editor aus `sp_league`
+|===
+
+Keine Konfiguration nötig – die Integration erfolgt automatisch.
+
+
+== Projektstruktur
+
+[source]
+----
+bbb-sportspress-sync/
+├── bbb-sportspress-sync.php              # Plugin-Bootstrap
+├── includes/
+│   ├── class-bbb-api-client.php           # BBB REST API Client
+│   ├── class-bbb-sync-engine.php          # Kern: Discovery + Sync + Reconciliation
+│   ├── class-bbb-player-sync.php          # Spieler-Import aus Boxscore
+│   ├── class-bbb-logo-handler.php         # Team-Logo Download + WP Media Library
+│   ├── class-bbb-cron.php                 # WP-Cron Handler
+│   ├── class-bbb-admin-page.php           # Admin UI (4 Tabs)
+│   ├── class-bbb-tables-integration.php   # Filter-Callbacks für BBB Live Tables
+│   └── class-bbb-goodlayers-bracket.php   # Goodlayers PB Elemente (SP-angereichert)
+└── docs/
+    └── arc42-bbb-sportspress-sync.adoc    # Architekturdokumentation
+----
+
+
+== Entwicklung
+
+=== Lokales Setup (Docker)
+
+[source,bash]
+----
+cd Basketball-Apps/wp-local/
+docker compose up -d
+./setup.sh
+----
+
+WordPress unter `http://localhost:8080` (Login: admin/admin). +
+Beide Plugins werden automatisch per Volume-Mount eingebunden.
+
+
+== Bekannte Einschränkungen
+
+* **PHP 8.5:** SportsPress Pro + Goodlayers crashen. PHP 8.3 verwenden.
+* **Goodlayers Page Builder:** Rendert SP-Blöcke/Widgets nicht korrekt – Shortcodes nutzen.
+* **Mini-Liga Boxscore:** U8–U12 haben selten digitale Anschreibebögen.
+* **Anonymisierte Spieler:** `playerId: 0` bei U8–U14 → werden nicht angelegt.
+* **Venue Mini-Liga:** Nur Ortsname (String), keine strukturierte Adresse.
+
+
+== Lizenz
+
+Dieses Plugin ist lizenziert unter der https://www.gnu.org/licenses/gpl-2.0.html[GPL-2.0+].
+
+
+== Autor
+
+Entwickelt von https://github.com/OliEder[Oliver-Marcus Eder] – Basketballtrainer und Softwareentwickler aus der Oberpfalz, Bayern.
+
+Wenn dir das Plugin nützt, freue ich mich über einen Kaffee:
+
+* ☕ https://buymeacoffee.com/olivermarcus.eder[Buy Me a Coffee]
+* 🎁 https://ko-fi.com/olieder[Ko-fi]

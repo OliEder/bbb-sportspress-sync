@@ -1,0 +1,853 @@
+= BBB SportsPress Sync – Architekturdokumentation (arc42)
+:author: Oliver-Marcus Eder
+:revdate: 2026-02-23
+:version: 1.0.0
+:toc: left
+:toclevels: 3
+:icons: font
+:source-highlighter: rouge
+:sectnums:
+
+
+== Einführung und Ziele
+
+=== Aufgabenstellung
+
+BBB SportsPress Sync synchronisiert Vereinsdaten aus der öffentlichen REST API von https://www.basketball-bund.net[basketball-bund.net] (BBB) in das WordPress-Plugin SportsPress. Teams, Spielplan, Ergebnisse, Spieler, Statistiken und Spielorte werden automatisch importiert und aktuell gehalten.
+
+Das Plugin wurde für den Basketballverein **Fibalon Baskets Neumarkt** (BBB Club-ID: 4468) entwickelt, ist aber für jeden deutschen Basketballverein nutzbar.
+
+=== Wesentliche Features
+
+* **Team-Discovery:** Automatische Erkennung eigener Teams über Club-ID
+* **Vollständiger Sync:** Teams, Events, Ergebnisse, Venues, Spieler, Tabellen, Ligen, Saisons
+* **Spieler-Import:** Boxscore-Statistiken mit konfigurierbarem Filter (nur eigene / alle Teams)
+* **Liga-Spielplan:** Alle Spiele einer Liga – nicht nur eigene Begegnungen
+* **Reconciliation:** Verschwundene Spiele werden automatisch gelöscht
+* **WP-Cron:** Konfigurierbares Auto-Sync-Intervall
+* **Datenschutz:** Titel, SP-Meta und manuelle Änderungen werden bei Updates geschützt
+* **Integration:** Speist SP-Daten (Logos, Links, Farben) via Filter Hooks in https://github.com/OliEder/bbb-live-tables[BBB Live Tables] ein
+
+=== Qualitätsziele
+
+[cols="1,3,1",options="header"]
+|===
+| Priorität | Qualitätsziel | Maßnahme
+
+| 1
+| **Datenintegrität**
+| Manuelle SP-Änderungen werden nie überschrieben. Null-Handling: API-`null` überschreibt nie existierende Daten.
+
+| 2
+| **Zuverlässigkeit**
+| Reconciliation löscht nur Spiele die aus der API verschwinden. Adoption-Strategie für bestehende SP-Daten.
+
+| 3
+| **DSGVO / Datensparsamkeit**
+| Spieler-Import konfigurierbar (nur eigene Teams). Anonymisierte Spieler werden nicht angelegt.
+
+| 4
+| **Wartbarkeit**
+| Kein Build-Tooling, reines PHP. Klare Trennung Sync-Engine / API-Client / Admin-UI.
+|===
+
+=== Stakeholder
+
+[cols="1,2",options="header"]
+|===
+| Stakeholder | Erwartung
+
+| Vereinstrainer / Webmaster
+| Aktueller Spielplan + Ergebnisse ohne manuellen Pflegeaufwand
+
+| SportsPress-Nutzer
+| Nahtlose Integration – SP-Tabellen, SP-Profile, SP-Statistiken gefüllt
+
+| Datenschutzbeauftragter
+| Kontrolle über importierte Spielerdaten (nur eigene, keine Anonymen)
+|===
+
+
+== Randbedingungen
+
+=== Technische Randbedingungen
+
+[cols="1,3",options="header"]
+|===
+| Randbedingung | Erläuterung
+
+| PHP ≥ 8.1
+| Union Types, Named Arguments, `str_contains()`
+
+| WordPress ≥ 6.0
+| Block Editor API v3, `register_block_type` mit `block.json`
+
+| SportsPress (Pro)
+| Pflicht-Abhängigkeit. SP-Post-Types (`sp_team`, `sp_event`, `sp_player` etc.)
+
+| BBB Live Tables
+| Empfohlene Abhängigkeit für Live-Tabellen und Turnier-Brackets
+
+| BBB REST API
+| Öffentlich, ohne Authentifizierung. Rate Limit ~1 req/s empfohlen.
+
+| PHP 8.5 inkompatibel
+| SportsPress Pro + Goodlayers crashen unter PHP 8.5. Maximal PHP 8.3 nutzen.
+
+| Kein Build-Tooling
+| Kein npm/webpack. Editor-JS als Vanilla `wp.element` / `wp.components`.
+|===
+
+=== Organisatorische Randbedingungen
+
+[cols="1,3",options="header"]
+|===
+| Randbedingung | Erläuterung
+
+| Lizenz
+| GPL-2.0+ (WordPress-Ökosystem)
+
+| Produktiv-Theme
+| BigSlam (Goodlayers/gdlr_core Framework) – Goodlayers PB statt Gutenberg
+
+| Hosting
+| Hetzner Webhosting (konsoleH), kein Root-Zugriff, kein Composer
+|===
+
+
+== Kontextabgrenzung
+
+=== Fachlicher Kontext
+
+[source]
+----
+                              ┌─────────────────┐
+                              │  WP Admin User  │
+                              └───────┬─────────┘
+                                      │ Discovery / Sync / Settings
+                                      ▼
+┌───────────────────┐     ┌──────────────────────────┐     ┌────────────────────┐
+│ basketball-bund.net│◄────│   BBB SportsPress Sync   │────►│    SportsPress     │
+│    REST API        │ API │                          │ WP  │ sp_team, sp_event, │
+└───────────────────┘     │  Sync-Engine, API-Client │     │ sp_player, sp_venue│
+                          │  Player-Sync, Logo-Handler│     └────────────────────┘
+                          └────────────┬─────────────┘
+                                       │ Filter Hooks
+                                       ▼
+                          ┌──────────────────────────┐
+                          │    BBB Live Tables        │
+                          │  (Tabellen + Brackets)    │
+                          └──────────────────────────┘
+----
+
+=== Technischer Kontext
+
+[cols="1,1,2",options="header"]
+|===
+| Schnittstelle | Technologie | Beschreibung
+
+| BBB REST API
+| HTTPS / JSON
+| Team-Discovery, Match-Sync, Boxscore, Venues, Liga-Spielplan
+
+| SportsPress
+| WordPress Post Types + Taxonomies
+| `sp_team`, `sp_event`, `sp_player`, `sp_list`, `sp_table`, `sp_league`, `sp_season`, `sp_venue`
+
+| BBB Live Tables
+| WordPress Filter Hooks
+| 6 Hooks für Logos, Links, Farben, Team-IDs, Liga-Optionen
+
+| Goodlayers Page Builder
+| PHP (gdlr_core Filter)
+| SP-angereicherte Elemente (Liga-Dropdown aus `sp_league`)
+
+| WP-Cron
+| WordPress Scheduler
+| Periodischer Auto-Sync (konfigurierbar, Default: 6h)
+
+| Nominatim (OSM)
+| HTTPS / JSON
+| Geocoding für Venue-Adressen (Latitude/Longitude)
+|===
+
+==== BBB REST API Endpoints
+
+[cols="2,2,1",options="header"]
+|===
+| Endpoint | Zweck | Frequenz
+
+| `/rest/club/id/{id}/actualmatches`
+| Team-Discovery
+| 1–2x / Saison
+
+| `/rest/team/id/{pid}/matches`
+| Haupt-Sync (pro eigenem Team)
+| Pro Sync-Zyklus
+
+| `/rest/competition/spielplan/id/{id}`
+| Liga-Spielplan (alle Teams)
+| Pro Sync-Zyklus
+
+| `/rest/match/id/{id}/matchInfo`
+| Venue-Daten
+| On-demand
+
+| `/rest/match/id/{id}/boxscore`
+| Spieler-Statistiken
+| Pro beendetem Spiel
+
+| `/rest/competition/table/id/{id}`
+| Liga-Tabelle
+| Delegiert an BBB Live Tables
+
+| `/rest/competition/id/{id}/matchday/{n}`
+| KO-Runde
+| Delegiert an BBB Live Tables
+
+| `/media/team/{pid}/logo`
+| Team-Logo (Binary)
+| 1x pro Team
+|===
+
+
+== Lösungsstrategie
+
+=== Kernentscheidungen
+
+[cols="1,3",options="header"]
+|===
+| Entscheidung | Begründung
+
+| **Team-centric Sync**
+| Sync basiert auf registrierten eigenen Teams (nicht Club-weit). Jedes Team wird einzeln synchronisiert. Erlaubt selektive Kontrolle.
+
+| **Zwei-Phasen-Sync**
+| Phase 2: Pro eigenem Team Matches holen → Events/Teams/Venues anlegen. Phase 3: Pro Liga den kompletten Spielplan holen → auch Spiele ohne eigene Beteiligung.
+
+| **Adoption statt Neuanlage**
+| Bestehende SP-Posts werden per Name-Fallback gefunden und adoptiert (BBB-IDs zugewiesen), statt Duplikate anzulegen.
+
+| **Datenschutz bei Updates**
+| Titel nur bei Erstanlage/Adoption. SP-Meta (`sp_abbreviation`, `sp_number` etc.) nur wenn leer. `_bbb_*` Meta immer aktuell.
+
+| **Sync-User**
+| Dedizierter WP-User (`bbb-sync`, Rolle: `editor`). Author-Preservation: Manuell geänderte Posts (anderer Autor) werden nicht überschrieben.
+
+| **Reconciliation**
+| Spiele die aus der API verschwinden werden als Draft markiert oder gelöscht. Verhindert veraltete Events.
+
+| **Delegation an BBB Live Tables**
+| Tabellen und Brackets werden vom Standalone-Plugin gerendert. Dieses Plugin liefert nur SP-Daten via Filter Hooks.
+|===
+
+=== Plugin-Ladereihenfolge
+
+[source]
+----
+plugins_loaded Priority 10:  bbb-sportspress-sync  → definiert BBB_SYNC_VERSION
+                                                    → prüft BBB_TABLES_VERSION
+                                                    → registriert Filter-Callbacks
+plugins_loaded Priority 20:  bbb-live-tables        → nutzt Filter-Callbacks für SP-Daten
+----
+
+
+== Bausteinsicht
+
+=== Ebene 1: Plugin-Struktur
+
+[source]
+----
+bbb-sportspress-sync/
+├── bbb-sportspress-sync.php              # Bootstrap, Konstanten, Dependency-Checks
+├── includes/
+│   ├── class-bbb-api-client.php           # BBB REST API Wrapper (full)
+│   ├── class-bbb-sync-engine.php          # ★ Kern: Discovery + Sync + Reconciliation
+│   ├── class-bbb-player-sync.php          # Spieler-Import aus Boxscore
+│   ├── class-bbb-logo-handler.php         # Team-Logo Download + WP Media Library
+│   ├── class-bbb-cron.php                 # WP-Cron Handler
+│   ├── class-bbb-admin-page.php           # Admin UI (Dashboard/Discovery/Settings/Logs)
+│   ├── class-bbb-tables-integration.php   # Filter-Callbacks für BBB Live Tables
+│   └── class-bbb-goodlayers-bracket.php   # Goodlayers PB Elemente (SP-angereichert)
+└── docs/
+    └── arc42-bbb-sportspress-sync.adoc    # Architekturdokumentation
+----
+
+=== Ebene 2: Bausteinbeschreibungen
+
+==== BBB_Sync_Engine (~81 KB)
+
+**Verantwortung:** Kernsynchronisation – der größte und wichtigste Baustein.
+
+Methoden-Übersicht:
+
+[cols="2,3",options="header"]
+|===
+| Methode | Beschreibung
+
+| `sync_all()`
+| Einstiegspunkt: Setup → Dedup → Phase 2 → Phase 3
+
+| `ensure_sportspress_setup()`
+| SP-Results/Outcomes/Performance Posts anlegen (einmalig)
+
+| `deduplicate_teams()`
+| Teams mit gleicher `_bbb_team_permanent_id` mergen
+
+| `sync_team_matches()`
+| Phase 2: Pro eigenem Team Matches von API holen + synchronisieren
+
+| `sync_teams_from_matches()`
+| SP-Teams anlegen/aktualisieren (eigene + Gegner)
+
+| `sync_team()`
+| Einzelnes Team synchronisieren (Datenschutz: Titel nur bei Erstanlage)
+
+| `sync_event()`
+| Einzelnes Spiel synchronisieren (Results, Status, Taxonomies)
+
+| `maybe_sync_venue()`
+| Venue anlegen/aktualisieren mit matchInfo + Geocoding
+
+| `reconcile_events()`
+| Verschwundene Spiele löschen
+
+| `sync_liga_spielplan()`
+| Phase 3: Kompletten Liga-Spielplan synchronisieren
+
+| `ensure_league_table()`
+| SP-Table Post pro Liga anlegen (wenn `tableExists: true`)
+|===
+
+===== Datenschutz-Regeln
+
+[cols="1,2,2",options="header"]
+|===
+| Kontext | Bei Erstanlage | Bei Update
+
+| `post_title`
+| Immer gesetzt
+| NIE überschrieben (Ausnahme: Adoption)
+
+| `post_content`
+| Leer oder Standard
+| NIE überschrieben
+
+| SP-Meta (`sp_abbreviation`, `sp_short_name`)
+| Immer gesetzt
+| Nur wenn leer (`set_meta_if_empty`)
+
+| BBB-Meta (`_bbb_*`)
+| Immer gesetzt
+| Immer aktualisiert (Primary Keys + Zuordnung)
+
+| `post_author`
+| Sync-User
+| Nur wenn aktueller Autor = Sync-User
+|===
+
+==== BBB_Api_Client (~13 KB)
+
+**Verantwortung:** HTTP-Kommunikation mit der BBB REST API.
+
+* Vollständiger Client mit allen Endpoints (Discovery, Matches, Boxscore, Venues, Liga-Spielplan, Matchdays)
+* Rate Limiting (1 req/s Throttle)
+* Error Handling → `WP_Error`
+* Logging in `bbb_sync_logs` Option
+* Status-Code-Prüfung (BBB-API nutzt `status: "0"` für Erfolg)
+
+==== BBB_Player_Sync (~23 KB)
+
+**Verantwortung:** Spieler-Import aus Boxscore-Daten.
+
+* Lookup: `person_id` (unique über Teams) → Name-Fallback (Adoption)
+* Datenschutz: Titel nur bei Erstanlage, `sp_number` nur wenn leer
+* Konfigurierbarer Filter: Nur eigene Teams oder alle
+* Anonymisierte Spieler (`playerId: 0`) werden übersprungen
+* Team-Zuordnung: `sp_team` + `sp_current_team` + `sp_past_team`
+* SP-List (Roster) pro Team anlegen/aktualisieren
+* Stat-Mapping: BBB-Felder → SportsPress Performance Aliases
+
+===== Boxscore Stat-Mapping
+
+[cols="1,1,2",options="header"]
+|===
+| BBB Feld | SP Alias | Beschreibung
+
+| `pts` | `pts` | Punkte
+| `ro` | `oreb` | Offensive Rebounds
+| `rd` | `dreb` | Defensive Rebounds
+| `rt` | `reb` | Rebounds gesamt
+| `as` | `ast` | Assists
+| `st` | `stl` | Steals
+| `to` | `to` | Turnovers
+| `bs` | `blk` | Blocks
+| `fouls` | `pf` | Fouls
+| `eff` | `eff` | Effizienz
+| `esz` | `min` | Einsatzzeit
+| `wt.made/attempted` | `fgm/fga` | Field Goals
+| `twoPoints.made/attempted` | `twom/twoa` | 2-Punkte-Würfe
+| `threePoints.made/attempted` | `3pm/3pa` | 3-Punkte-Würfe
+| `onePoints.made/attempted` | `ftm/fta` | Freiwürfe
+|===
+
+==== BBB_Logo_Handler (~6 KB)
+
+**Verantwortung:** Team-Logos von BBB-API herunterladen und in WP Media Library speichern.
+
+* Download von `basketball-bund.net/media/team/{pid}/logo`
+* Upload in WP Media Library → Attachment-ID
+* Setzt Featured Image (`_thumbnail_id`) auf `sp_team` Post
+* Skip wenn bereits gesetzt (kein Überschreiben)
+
+==== BBB_Cron (~1 KB)
+
+**Verantwortung:** WP-Cron-Hook für periodischen Auto-Sync.
+
+* Hook: `bbb_sync_cron_event`
+* Intervall aus Option `bbb_sync_interval` (Default: 6h)
+* Ruft `BBB_Sync_Engine::sync_all()` auf
+
+==== BBB_Admin_Page (~73 KB)
+
+**Verantwortung:** WordPress Admin-Oberfläche unter SportsPress → BBB Sync.
+
+Vier Tabs:
+
+* **Dashboard:** Status-Übersicht, manueller Sync-Button mit AJAX-Fortschritt, Shortcode-Karte
+* **Team-Discovery:** Teams per Club-ID entdecken, selektiv registrieren
+* **Einstellungen:** Club-ID, Sync-Horizont, Cron-Intervall, Spieler-Import, Wartung
+* **Logs:** Filterbares Log (Alle/Fehler/Warnungen/Info) mit farblicher Hervorhebung
+
+Zusätzlich: Meta-Boxen auf `sp_player` (Person-ID) und `sp_team` (Team Permanent-ID) für manuelle Datenpflege.
+
+==== BBB_Tables_Integration (~7 KB)
+
+**Verantwortung:** Filter-Callbacks die SP-Daten in BBB Live Tables einspeisen.
+
+Registriert 6 Filter:
+
+[cols="2,3",options="header"]
+|===
+| Filter | Callback-Logik
+
+| `bbb_table_team_logo_url`
+| SP Featured Image URL (Größe: `sportspress-fit-icon`)
+
+| `bbb_table_team_url`
+| `get_permalink()` des `sp_team` Posts
+
+| `bbb_table_event_url`
+| `get_permalink()` des `sp_event` Posts
+
+| `bbb_table_theme_colors`
+| SportsPress Frontend CSS Colors + Goodlayers Fallback
+
+| `bbb_table_own_team_ids`
+| `sp_team` Posts mit `_bbb_is_own_team = 1`
+
+| `bbb_table_liga_options`
+| `sp_league` Taxonomy Terms mit `_bbb_liga_id`
+|===
+
+==== BBB_Goodlayers_Bracket (~19 KB)
+
+**Verantwortung:** SP-angereicherte Goodlayers Page Builder Elemente.
+
+* Registriert `[gdlr_core_bbb_table]` und `[gdlr_core_bbb_bracket]`
+* Liga-Dropdown basierend auf `sp_league` Taxonomy (statt manueller ID-Eingabe)
+* Wird immer geladen und überschreibt die Standalone-Registrierung
+
+
+== Laufzeitsicht
+
+=== Szenario: Vollständiger Sync-Zyklus
+
+[source]
+----
+WP-Cron / Admin-Button
+  │
+  ▼
+sync_all()
+  │
+  ├── ensure_sportspress_setup()           Einmalig: SP-Posts anlegen
+  ├── deduplicate_teams()                  Duplikate mergen
+  │
+  ├── PHASE 2: Pro eigenem Team (N Teams)
+  │   ├── API: /rest/team/id/{pid}/matches
+  │   ├── extract_leagues()                → sp_league + sp_season Taxonomien
+  │   ├── sync_teams_from_matches()        → sp_team Posts
+  │   ├── sync_event() × M Matches        → sp_event + sp_results + sp_venue
+  │   │   ├── maybe_sync_venue()           → Geocoding (Nominatim)
+  │   │   └── player_sync (optional)       → sp_player + sp_list
+  │   └── reconcile_events()               → Verschwundene Spiele löschen
+  │
+  └── PHASE 3: Pro entdeckter Liga (L Ligen)
+      ├── API: /rest/competition/spielplan/id/{ligaId}
+      ├── sync_event() × K Matches         → Alle Liga-Matches
+      └── ensure_league_table()             → sp_table Post
+----
+
+=== Szenario: Team-Discovery
+
+[source]
+----
+Admin: Team-Discovery Tab → "Teams erkennen"
+  │
+  ▼
+API: /rest/club/id/{clubId}/actualmatches
+  │
+  ▼
+Response: Liste aller aktuellen Matches mit Team-Daten
+  │
+  ▼
+Extraktion: Eigene Teams (clubId = registrierte Club-ID)
+  │
+  ▼
+Admin: Checkboxen zum Aktivieren/Deaktivieren einzelner Teams
+  │
+  ▼
+Speichern → Option: bbb_sync_team_pids (Komma-getrennte Permanent-IDs)
+----
+
+=== Szenario: Adoption (bestehende SP-Daten)
+
+Wenn ein SP-Team bereits manuell angelegt wurde:
+
+. Sync sucht per `_bbb_team_permanent_id` → nicht gefunden
+. Fallback: Suche per `post_title` (Team-Name)
+. Match gefunden → Adoption: BBB-Meta wird zugewiesen
+. Ab sofort: Lookup per Permanent-ID (schnell, eindeutig)
+
+
+== Verteilungssicht
+
+=== Produktiv
+
+[source]
+----
+Hetzner Webhosting (konsoleH)
+├── WordPress 6.9.1 / PHP 8.3
+│   ├── SportsPress Pro 2.7.28
+│   ├── BigSlam Child Theme (Goodlayers)
+│   ├── bbb-live-tables/          ← Standalone: Tabellen + Brackets
+│   └── bbb-sportspress-sync/    ← Sync: Teams + Events + Spieler
+└── MariaDB
+----
+
+=== Lokal (Docker)
+
+[source]
+----
+wp-local/
+├── docker-compose.yml
+│   ├── WordPress:  localhost:8080
+│   ├── phpMyAdmin: localhost:8081
+│   └── MariaDB:    localhost:3307
+├── setup.sh (automatische Einrichtung)
+└── Volume Mounts:
+    ├── ../bbb-live-tables → wp-content/plugins/bbb-live-tables
+    └── ../bbb-sportspress-sync → wp-content/plugins/bbb-sportspress-sync
+----
+
+
+== Querschnittliche Konzepte
+
+=== Datenmodell-Mapping BBB → SportsPress
+
+[cols="1,1,2,2",options="header"]
+|===
+| BBB Entity | SP Post Type | Primärer Key (Meta) | Finder-Methode
+
+| Team
+| `sp_team`
+| `_bbb_team_permanent_id`
+| `find_sp_team_by_permanent_id()`
+
+| Match
+| `sp_event`
+| `_bbb_match_id`
+| `find_sp_event()`
+
+| Spieler
+| `sp_player`
+| `_bbb_person_id`
+| `find_by_person_id()`
+
+| Spielerliste
+| `sp_list`
+| `_bbb_team_wp_id`
+| per `team_wp_id` Lookup
+
+| Liga
+| `sp_league` (Taxonomy)
+| `_bbb_liga_id` (term_meta)
+| Slug: `bbb-{ligaId}`
+
+| Saison
+| `sp_season` (Taxonomy)
+| —
+| Slug: `2025-2026`
+
+| Spielfeld
+| `sp_venue` (Taxonomy)
+| `_bbb_spielfeld_id` (term_meta)
+| `find_venue_by_spielfeld_id()`
+
+| Tabelle
+| `sp_table`
+| `_bbb_liga_id` (post_meta)
+| `find_sp_table_by_liga_id()`
+|===
+
+=== Sync-User
+
+Login: `bbb-sync`, Display: `basketball-bund.net`, Rolle: `editor`
+
+Alle synchronisierten Posts gehören diesem User. Author-Preservation: Bei Update nur überschreiben wenn `post_author === sync_user_id`. Manuelle Edits (anderer Autor) werden respektiert.
+
+=== Event-Status-Logik
+
+[cols="1,1,1,1,2",options="header"]
+|===
+| `abgesagt` | `result` | `verzicht` | SP Status | Beschreibung
+
+| `true` | `null` | — | Draft | Abgesagt, kann Ersatztermin bekommen
+| — | `null` | — | `future` | Noch nicht gespielt
+| — | `"49:94"` | `false` | `publish` | Reguläres Ergebnis
+| — | `"20:0"` | `true` | `publish` + Meta | Wertung als Verzicht
+|===
+
+=== Null-Handling
+
+`null` ≠ `false`. Ein `null`-Wert aus der API bedeutet "Feld nicht geliefert" und überschreibt nie existierende Daten:
+
+[source,php]
+----
+set_meta_if_not_null($post_id, $key, $value)     // Schreibt nur wenn $value !== null
+set_meta_if_empty($post_id, $key, $value)         // Nur wenn bestehender Wert leer
+set_meta_safe($post_id, $key, $value, $is_update)  // Create→immer, Update→nur wenn leer
+----
+
+=== Meta-Boxen für manuelle Datenpflege
+
+Admin-UI registriert Meta-Boxen auf:
+
+* `sp_player` Edit-Screen: Feld für `_bbb_person_id` (BBB Person-ID)
+* `sp_team` Edit-Screen: Feld für `_bbb_team_permanent_id` (BBB Team Permanent-ID)
+
+Ermöglicht manuelle Zuordnung von SP-Posts zu BBB-Entitäten ohne vorherigen Sync.
+
+=== Filter-Hook-Integration
+
+Das Sync-Plugin speist SP-Daten in BBB Live Tables ein:
+
+[cols="2,3",options="header"]
+|===
+| Filter | Was das Sync-Plugin liefert
+
+| `bbb_table_team_logo_url`
+| SP Featured Image (statt BBB-API-Logo)
+
+| `bbb_table_team_url`
+| SP Team Post Permalink
+
+| `bbb_table_event_url`
+| SP Event Post Permalink
+
+| `bbb_table_theme_colors`
+| SportsPress Frontend CSS Colors
+
+| `bbb_table_own_team_ids`
+| SP-Teams mit `_bbb_is_own_team = 1`
+
+| `bbb_table_liga_options`
+| `sp_league` Terms mit `_bbb_liga_id`
+|===
+
+
+== Architekturentscheidungen
+
+=== ADR-001: Team-centric statt Club-centric Sync
+
+**Kontext:** Ursprünglich wurde der gesamte Verein auf einmal synchronisiert. Problem: Keine Kontrolle über einzelne Teams.
+
+**Entscheidung:** Sync basiert auf explizit registrierten Teams (Discovery → Auswahl → Sync).
+
+**Konsequenzen:**
+
+* (+) Selektive Kontrolle – nicht jedes Team muss synchronisiert werden
+* (+) Übersichtlichere Logs und Statistiken
+* (−) Erfordert manuellen Discovery-Schritt (1-2x pro Saison)
+
+=== ADR-002: Adoption statt Duplikat-Anlage
+
+**Kontext:** Viele Vereine haben bereits manuell SP-Teams/Events angelegt.
+
+**Entscheidung:** Bei fehlender `_bbb_*`-Meta wird per Name gesucht und adoptiert.
+
+**Konsequenzen:**
+
+* (+) Nahtlose Migration ohne Datenverlust
+* (+) Manuelle SP-Anpassungen (Logos, Texte) bleiben erhalten
+* (−) Name-Matching ist unscharf (Sonderzeichen, Schreibweisen)
+
+=== ADR-003: Delegation von Tabellen/Brackets an Standalone-Plugin
+
+**Kontext:** Tabellen/Brackets wurden ursprünglich direkt im Sync-Plugin gerendert.
+
+**Entscheidung:** Extraktion in eigenständiges Plugin (BBB Live Tables), Kommunikation via Filter Hooks.
+
+**Konsequenzen:**
+
+* (+) Tabellen auch ohne SportsPress nutzbar
+* (+) DSGVO: Standalone speichert nichts lokal
+* (+) Unabhängige Versionierung
+* (−) Zwei Plugins statt einem zu installieren
+
+=== ADR-004: Sync-User mit Author-Preservation
+
+**Kontext:** Manuelle Änderungen an SP-Posts sollen bei Re-Sync nicht verloren gehen.
+
+**Entscheidung:** Dedizierter Sync-User. Posts mit anderem Autor werden als "manuell geändert" behandelt.
+
+**Konsequenzen:**
+
+* (+) Manuelle Titel-Änderungen, Content-Edits bleiben erhalten
+* (+) Klar erkennbar welche Daten vom Sync stammen
+* (−) Komplexere Update-Logik
+
+
+== Qualitätsanforderungen
+
+=== Qualitätsszenarien
+
+[cols="1,2,2",options="header"]
+|===
+| ID | Szenario | Erwartung
+
+| QS-1
+| BBB-API liefert neues Match
+| SP-Event wird angelegt mit korrektem Status, Teams, Liga, Saison, Venue.
+
+| QS-2
+| BBB-API liefert Ergebnis für bestehendes Event
+| `sp_results` wird aktualisiert, Status auf `publish`, Boxscore importiert (wenn konfiguriert).
+
+| QS-3
+| Admin ändert manuell den Titel eines SP-Teams
+| Nächster Sync überschreibt den Titel NICHT.
+
+| QS-4
+| Match verschwindet aus der API (Absetzung/Storno)
+| Reconciliation markiert/löscht das SP-Event.
+
+| QS-5
+| Zwei SP-Teams haben gleiche Permanent-ID (Duplikat)
+| `deduplicate_teams()` mergt sie – Events/Taxonomies werden auf überlebenden Post übertragen.
+
+| QS-6
+| Boxscore enthält anonymisierten Spieler (playerId: 0)
+| Spieler wird übersprungen, kein SP-Post angelegt.
+|===
+
+
+== Risiken und technische Schulden
+
+[cols="1,2,1,2",options="header"]
+|===
+| ID | Risiko / Schuld | Priorität | Maßnahme
+
+| R-1
+| BBB-API ändert Response-Format
+| Hoch
+| Defensive Parsing (`?? []`, `?? null`). Monitoring über Sync-Logs.
+
+| R-2
+| Sync-Engine (81 KB) ist sehr groß
+| Mittel
+| Klar strukturiert in Phasen. Mögliche Extraktion in Sub-Klassen.
+
+| R-3
+| Admin-Page (73 KB) ist sehr groß
+| Mittel
+| Rendering direkt in PHP statt Template-Engine. Mögliche Aufteilung in Tab-Klassen.
+
+| R-4
+| Kein automatisiertes Testing
+| Mittel
+| Docker-Setup vorhanden. E2E-Tests als mögliche Erweiterung.
+
+| R-5
+| Geocoding via Nominatim hat Rate Limits
+| Niedrig
+| Venues werden nur einmal geocoded. `_bbb_venue_geocoded` Flag verhindert Re-Calls.
+|===
+
+
+== Glossar
+
+[cols="2,4",options="header"]
+|===
+| Begriff | Bedeutung
+
+| BBB
+| basketball-bund.net – Offizielle Website des Deutschen Basketball Bundes (DBB)
+
+| Team Permanent-ID (PID)
+| Mannschafts-ID die über Saisons hinweg gleich bleibt
+
+| Club-ID
+| Vereins-ID in der BBB-API (Fibalon Baskets Neumarkt = 4468)
+
+| SP / SportsPress
+| WordPress-Plugin für Sportvereinsverwaltung
+
+| Discovery
+| Einmaliger Schritt: Eigene Teams per Club-ID identifizieren und registrieren
+
+| Adoption
+| Zuordnung von BBB-IDs zu bestehenden, manuell angelegten SP-Posts
+
+| Reconciliation
+| Abgleich: SP-Events die nicht mehr in der API existieren werden entfernt
+
+| Sync-User
+| Dedizierter WP-User (`bbb-sync`) dem alle synchronisierten Posts gehören
+
+| Boxscore
+| Spieler-Statistiken eines abgeschlossenen Spiels (Punkte, Rebounds, Assists etc.)
+
+| Goodlayers / gdlr_core
+| Page Builder Framework, genutzt vom BigSlam WordPress-Theme
+
+| Transient
+| WordPress-eigener Key-Value-Cache mit automatischer Ablaufzeit
+|===
+
+
+[appendix]
+== Versionsverlauf
+
+[cols="1,1,4",options="header"]
+|===
+| Version | Datum | Änderungen
+
+| v1.0.0
+| 2026-02-23
+| Erstes offizielles Release. Tabellen/Brackets delegiert an BBB Live Tables.
+Legacy-Dateien entfernt. Meta-Boxen für manuelle Person-ID / Team-PID Pflege.
+Sync-Plugin-Menü ins SportsPress-Menü verschoben.
+
+| v3.5.5 (intern)
+| 2026-02-14
+| sp_table pro Liga, Log mit Level-Filter, Tournament Bracket Shortcode, Goodlayers Integration
+
+| v3.5.0–3.5.4 (intern)
+| 2026-02-10–14
+| Boxscore Re-Sync, Team-Dedup, Venue-Geocoding, Liga-Spielplan, Author-Preservation
+
+| v3.0.0 (intern)
+| 2026-02-10
+| Team-centric Sync, Discovery, Reconciliation, Event-Status-Logik
+|===
