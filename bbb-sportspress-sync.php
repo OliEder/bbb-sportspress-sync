@@ -3,7 +3,7 @@
  * Plugin Name:       BBB SportsPress Sync
  * Plugin URI:        https://github.com/OliEder/bbb-sportspress-sync
  * Description:       Synchronisiert Vereinsdaten aus der Basketball-Bund.net (BBB) REST API in SportsPress – Teams, Spielplan, Ergebnisse, Spieler, Statistiken und Spielorte. Benötigt SportsPress und BBB Live Tables.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Author:            Oliver-Marcus Eder
  * Author URI:        https://github.com/OliEder
  * License:           GPL-2.0+
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BBB_SYNC_VERSION', '1.0.0' );
+define( 'BBB_SYNC_VERSION', '1.1.0' );
 define( 'BBB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BBB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'BBB_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -124,7 +124,7 @@ add_action( 'plugins_loaded', function() {
  */
 add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
     array_unshift( $links,
-        '<a href="' . admin_url( 'edit.php?post_type=sp_event&page=bbb-sync' ) . '">Einstellungen</a>'
+        '<a href="' . admin_url( 'admin.php?page=bbb-sync' ) . '">Einstellungen</a>'
     );
     return $links;
 });

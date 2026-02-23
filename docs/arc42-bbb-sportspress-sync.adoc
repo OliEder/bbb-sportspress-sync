@@ -15,7 +15,7 @@
 
 BBB SportsPress Sync synchronisiert Vereinsdaten aus der öffentlichen REST API von https://www.basketball-bund.net[basketball-bund.net] (BBB) in das WordPress-Plugin SportsPress. Teams, Spielplan, Ergebnisse, Spieler, Statistiken und Spielorte werden automatisch importiert und aktuell gehalten.
 
-Das Plugin wurde für den Basketballverein **Fibalon Baskets Neumarkt** (BBB Club-ID: 4468) entwickelt, ist aber für jeden deutschen Basketballverein nutzbar.
+Das Plugin wurde für den Basketballverein **Fibalon Baskets Neumarkt** (BBB Club-ID: 1234) entwickelt, ist aber für jeden deutschen Basketballverein nutzbar.
 
 === Wesentliche Features
 
@@ -798,7 +798,7 @@ Das Sync-Plugin speist SP-Daten in BBB Live Tables ein:
 | Mannschafts-ID die über Saisons hinweg gleich bleibt
 
 | Club-ID
-| Vereins-ID in der BBB-API (Fibalon Baskets Neumarkt = 4468)
+| Vereins-ID in der BBB-API (z.B. 1234)
 
 | SP / SportsPress
 | WordPress-Plugin für Sportvereinsverwaltung

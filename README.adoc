@@ -69,7 +69,7 @@ Beide Plugins im WordPress-Admin aktivieren.
 
 Nach der Aktivierung: **SportsPress → BBB Sync**
 
-. **Einstellungen-Tab:** Club-ID eintragen (z.B. `4468`) +
+. **Einstellungen-Tab:** Club-ID eintragen (z.B. `1234`) +
   _(URL deiner Vereinsseite: `basketball-bund.net/club/id/XXXX`)_
 . **Team-Discovery-Tab:** "Teams erkennen" klicken → eigene Teams mit Häkchen aktivieren → Speichern
 . **Dashboard-Tab:** "Jetzt synchronisieren" klicken

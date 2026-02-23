@@ -1,0 +1,35 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build plugin zip
+        run: |
+          PLUGIN_SLUG="bbb-sportspress-sync"
+          mkdir -p build/${PLUGIN_SLUG}
+          rsync -av --exclude='.git' --exclude='.github' --exclude='.DS_Store' --exclude='.gitignore' --exclude='docs/' --exclude='build/' . build/${PLUGIN_SLUG}/
+          cd build
+          zip -r ${PLUGIN_SLUG}-${{ steps.version.outputs.VERSION }}.zip ${PLUGIN_SLUG}/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: v${{ steps.version.outputs.VERSION }}
+          generate_release_notes: true
+          files: build/bbb-sportspress-sync-${{ steps.version.outputs.VERSION }}.zip

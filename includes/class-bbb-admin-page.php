@@ -33,8 +33,12 @@ class BBB_Admin_Page {
 
     public function add_menu(): void {
         add_submenu_page(
-            'sportspress', 'BBB Sync', 'BBB Sync',
-            'manage_options', 'bbb-sync', [ $this, 'render_page' ]
+            'sportspress',
+            'BBB Sync',
+            'BBB Sync',
+            'manage_options',
+            'bbb-sync',
+            [ $this, 'render_page' ]
         );
     }
 
@@ -242,7 +246,7 @@ class BBB_Admin_Page {
             global $wpdb;
             $n = $wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_bbb_boxscore_synced'" );
             set_transient( 'bbb_sync_notice', "{$n} Boxscore-Flags zurückgesetzt.", 30 );
-            wp_safe_redirect( admin_url( 'admin.php?page=bbb-sync&tab=settings' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=bbb-sync&tab=cleanup' ) );
             exit;
         }
 
@@ -257,7 +261,7 @@ class BBB_Admin_Page {
                  OR option_name LIKE '_transient_timeout_bbb_bracket_%'"
             );
             set_transient( 'bbb_sync_notice', "Tabellen-Cache geleert ({$deleted} Einträge entfernt).", 30 );
-            wp_safe_redirect( admin_url( 'admin.php?page=bbb-sync&tab=settings' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=bbb-sync&tab=dashboard' ) );
             exit;
         }
 
@@ -394,6 +398,7 @@ class BBB_Admin_Page {
                 <?php foreach ( [
                     'dashboard' => 'Dashboard', 'discovery' => 'Team-Discovery',
                     'cleanup' => 'Cleanup', 'settings' => 'Einstellungen', 'logs' => 'Logs',
+                    'support' => '❤️ Support',
                 ] as $slug => $label ) : ?>
                     <a href="?page=bbb-sync&tab=<?php echo $slug; ?>"
                        class="nav-tab <?php echo $tab === $slug ? 'nav-tab-active' : ''; ?>">
@@ -407,6 +412,7 @@ class BBB_Admin_Page {
                     'cleanup'   => $this->render_cleanup_tab(),
                     'settings'  => $this->render_settings_tab(),
                     'logs'      => $this->render_logs_tab(),
+                    'support'   => $this->render_support_tab(),
                     default     => $this->render_dashboard_tab(),
                 }; ?>
             </div>
@@ -506,6 +512,25 @@ class BBB_Admin_Page {
 
             <!-- Shortcodes -->
             <?php $this->render_shortcodes_card(); ?>
+
+            <!-- Schnellaktionen -->
+            <div class="card" style="max-width:650px; padding:15px; margin-top:15px;">
+                <h2>🛠️ Schnellaktionen</h2>
+                <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start;">
+                    <form method="post">
+                        <?php wp_nonce_field( 'bbb_sync_action' ); ?>
+                        <?php submit_button( 'Tabellen-Cache leeren', 'secondary', 'bbb_clear_table_cache', false ); ?>
+                    </form>
+                    <form method="post">
+                        <?php wp_nonce_field( 'bbb_sync_action' ); ?>
+                        <?php submit_button( 'Sync-Lock lösen', 'secondary', 'bbb_reset_sync_lock', false ); ?>
+                    </form>
+                </div>
+                <p class="description" style="margin-top:8px;">
+                    <strong>Tabellen-Cache:</strong> Leert den Cache für Live-Tabellen und Brackets. Die Daten werden beim nächsten Seitenaufruf frisch von basketball-bund.net geladen.<br>
+                    <strong>Sync-Lock:</strong> Löst einen hängengebliebenen Sync-Prozess. Nutze dies, wenn der Button dauerhaft "Sync läuft…" anzeigt, obwohl kein Sync mehr aktiv ist.
+                </p>
+            </div>
 
             <script>
             (function() {
@@ -899,31 +924,7 @@ class BBB_Admin_Page {
                 <?php submit_button(); ?>
             </form>
 
-            <hr style="margin:20px 0;">
-            <h3>Wartung</h3>
-            <form method="post" style="margin-bottom:10px;">
-                <?php wp_nonce_field( 'bbb_sync_action' ); ?>
-                <p class="description">Live-Tabellen- und Bracket-Cache leeren → Daten werden beim nächsten Seitenaufruf frisch von der API geholt.</p>
-                <?php submit_button( 'Tabellen-Cache leeren', 'secondary', 'bbb_clear_table_cache', false ); ?>
-            </form>
-            <form method="post" style="margin-bottom:10px;">
-                <?php wp_nonce_field( 'bbb_sync_action' ); ?>
-                <p class="description">Boxscore-Flags zurücksetzen → Spieler werden beim nächsten Sync neu importiert.</p>
-                <?php submit_button( 'Boxscore-Flags reset', 'secondary', 'bbb_reset_boxscore_flags', false ); ?>
-            </form>
-            <form method="post">
-                <?php wp_nonce_field( 'bbb_sync_action' ); ?>
-                <p class="description">Sync-Lock lösen (falls Button "Sync läuft" hängt).</p>
-                <?php submit_button( 'Sync-Lock lösen', 'secondary', 'bbb_reset_sync_lock', false ); ?>
-            </form>
-            <form method="post" style="margin-top:10px;">
-                <?php wp_nonce_field( 'bbb_sync_action' ); ?>
-                <p class="description">
-                    <strong>Ergebnis-Keys reparieren:</strong> Kopiert vorhandene Ergebnisse in alle oben konfigurierten Ergebnis-Felder und korrigiert sp_main_result.
-                    Nötig wenn Ergebnisse im Game-Editor stehen, aber in der Übersicht/Teasern "N/A" angezeigt wird.
-                </p>
-                <?php submit_button( 'Result-Keys reparieren', 'secondary', 'bbb_repair_result_keys', false ); ?>
-            </form>
+
         </div>
         <?php
     }
@@ -1105,6 +1106,54 @@ class BBB_Admin_Page {
             </form>
         </div>
 
+        <!-- Boxscore-Flags -->
+        <div class="card" style="max-width:700px; padding:15px; margin-top:15px;">
+            <h2>🔄 Boxscore-Flags zurücksetzen</h2>
+            <p class="description">
+                Der Sync merkt sich pro Spiel, ob der Boxscore (Spielerstatistiken) bereits importiert wurde.
+                Das verhindert, dass bei jedem Sync-Lauf alle Boxscores erneut von der API abgerufen werden.
+            </p>
+            <p class="description" style="margin-top:8px;">
+                <strong>Wann zurücksetzen?</strong>
+            </p>
+            <ul style="margin:4px 0 12px 20px; font-size:13px; color:#555;">
+                <li>Spieler-Statistiken fehlen oder sind unvollständig (z.B. nach einem abgebrochenen Sync)</li>
+                <li>Du hast das Statistik-Mapping geändert und möchtest, dass alle Boxscores mit der neuen Zuordnung neu importiert werden</li>
+                <li>Spieler wurden manuell gelöscht und sollen beim nächsten Sync erneut angelegt werden</li>
+                <li>Die BBB-API hat nachträglich korrigierte Daten für bereits synchronisierte Spiele</li>
+            </ul>
+            <p class="description" style="margin-bottom:12px;">
+                Nach dem Zurücksetzen werden beim nächsten Sync <strong>alle Boxscores erneut</strong> von der API abgerufen.
+                Das dauert entsprechend länger, da mehr API-Calls nötig sind.
+            </p>
+            <form method="post" onsubmit="return confirm('Boxscore-Flags zurücksetzen? Beim nächsten Sync werden alle Boxscores erneut importiert.');">
+                <?php wp_nonce_field( 'bbb_sync_action' ); ?>
+                <?php submit_button( 'Boxscore-Flags zurücksetzen', 'secondary', 'bbb_reset_boxscore_flags', false ); ?>
+            </form>
+        </div>
+
+        <!-- Result-Keys reparieren -->
+        <div class="card" style="max-width:700px; padding:15px; margin-top:15px;">
+            <h2>🔧 Ergebnis-Keys reparieren</h2>
+            <p class="description">
+                Kopiert vorhandene Spielergebnisse in alle unter
+                <a href="?page=bbb-sync&tab=settings">Einstellungen → Ergebnis-Felder</a>
+                konfigurierten Spalten und setzt <code>sp_main_result</code> korrekt.
+            </p>
+            <p class="description" style="margin-top:8px;">
+                <strong>Wann reparieren?</strong>
+            </p>
+            <ul style="margin:4px 0 12px 20px; font-size:13px; color:#555;">
+                <li>Ergebnisse stehen im Game-Editor, aber in der Übersicht/Teasern wird „N/A“ angezeigt</li>
+                <li>SportsPress-Tabellen zeigen 0:0 obwohl Ergebnisse vorhanden sind</li>
+                <li>Du hast die Ergebnis-Felder in den Einstellungen geändert (z.B. <code>t</code> → <code>pts</code>)</li>
+            </ul>
+            <form method="post" onsubmit="return confirm('Ergebnis-Keys in allen Events reparieren?');">
+                <?php wp_nonce_field( 'bbb_sync_action' ); ?>
+                <?php submit_button( 'Result-Keys reparieren', 'secondary', 'bbb_repair_result_keys', false ); ?>
+            </form>
+        </div>
+
         <!-- Full Reset -->
         <div class="card" style="max-width:700px; padding:15px; margin-top:15px; border-left:4px solid #d63638;">
             <h2>⚠️ Vollständiger Reset</h2>
@@ -1237,7 +1286,7 @@ class BBB_Admin_Page {
         $msg .= '.';
 
         set_transient( 'bbb_sync_notice', $msg, 30 );
-        wp_safe_redirect( admin_url( 'admin.php?page=bbb-sync&tab=settings' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=bbb-sync&tab=cleanup' ) );
         exit;
     }
 
@@ -1480,6 +1529,64 @@ class BBB_Admin_Page {
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>
+
+        </div>
+        <?php
+    }
+
+    // ─────────────────────────────────────────
+    // TAB: SUPPORT
+    // ─────────────────────────────────────────
+
+    private function render_support_tab(): void {
+        ?>
+        <div class="card" style="max-width:700px; padding:20px;">
+            <h2>🏀 BBB SportsPress Sync unterstützen</h2>
+            <p>
+                Dieses Plugin wird ehrenamtlich von <strong>Oliver-Marcus Eder</strong> entwickelt und gepflegt.
+                Es ist kostenlos und Open Source – wenn es dir weiterhilft, freue ich mich über einen kleinen Beitrag:
+            </p>
+
+            <div style="display:flex; gap:16px; margin:20px 0;">
+                <a href="https://buymeacoffee.com/olivermarcus.eder" target="_blank"
+                   style="display:inline-flex; align-items:center; gap:8px; padding:10px 20px; background:#FFDD00; color:#000; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px;">
+                    ☕ Buy Me a Coffee
+                </a>
+                <a href="https://ko-fi.com/olieder" target="_blank"
+                   style="display:inline-flex; align-items:center; gap:8px; padding:10px 20px; background:#13C3FF; color:#fff; border-radius:8px; text-decoration:none; font-weight:600; font-size:15px;">
+                    🎁 Ko-fi
+                </a>
+            </div>
+
+            <hr style="margin:20px 0;">
+
+            <h3>🐛 Fehler melden &amp; Feature-Wünsche</h3>
+            <p>
+                Hast du einen Bug gefunden oder eine Idee für ein neues Feature?
+                Erstelle ein Issue auf GitHub:
+            </p>
+            <p>
+                <a href="https://github.com/OliEder/bbb-sportspress-sync/issues" target="_blank" class="button">
+                    GitHub Issues → bbb-sportspress-sync
+                </a>
+            </p>
+
+            <hr style="margin:20px 0;">
+
+            <h3>📦 Weitere Plugins</h3>
+            <table class="widefat striped" style="max-width:500px;">
+                <tr>
+                    <td><strong>BBB Live Tables</strong></td>
+                    <td>Liga-Tabellen &amp; Turnier-Brackets direkt aus der BBB-API</td>
+                    <td><a href="https://github.com/OliEder/bbb-live-tables" target="_blank">GitHub</a></td>
+                </tr>
+            </table>
+
+            <hr style="margin:20px 0;">
+
+            <p style="color:#666; font-size:13px;">
+                Entwickelt mit ❤️ in Bayern · <a href="https://github.com/OliEder" target="_blank">github.com/OliEder</a>
+            </p>
         </div>
         <?php
     }

@@ -42,7 +42,7 @@ class BBB_Api_Client {
      * Zweck: Team-Discovery – eigene Teams identifizieren.
      * Frequenz: 1-2x pro Saison, manuell ausgelöst.
      *
-     * @param int $club_id    BBB Vereins-ID (z.B. 4468)
+     * @param int $club_id    BBB Vereins-ID (z.B. 1234)
      * @param int $range_days Zeitraum in Tagen (default: 365)
      * @return array|WP_Error { club: {...}, matches: [...] }
      */
