@@ -191,12 +191,16 @@ Boxscore-Statistiken von abgeschlossenen Spielen. Aktivierung unter Einstellunge
 
 Anonymisierte Spieler (`playerId: 0`, häufig bei U8–U14) werden übersprungen.
 
-=== Meta-Boxen
+=== Meta-Boxen (BBB-Daten)
 
-Für manuelle Zuordnung ohne vorherigen Sync stehen Meta-Boxen bereit:
+Auf allen relevanten SportsPress-Entitäten zeigt eine Sidebar-Box die verknüpften BBB-IDs an:
 
-* **sp_player** Edit-Screen: `_bbb_person_id` (BBB Person-ID)
-* **sp_team** Edit-Screen: `_bbb_team_permanent_id` (BBB Team Permanent-ID)
+* **sp_player** (Spieler): `_bbb_person_id` – BBB Person-ID
+* **sp_team** (Team): `_bbb_team_permanent_id` – BBB Team Permanent-ID
+* **sp_event** (Spiel): `_bbb_match_id` – BBB Match-ID + `_bbb_liga_id` – BBB Liga-ID + Spieltag-Anzeige + Direktlink zu basketball-bund.net
+* **sp_venue** (Spielort): `_bbb_spielfeld_id` – BBB Spielfeld-ID _(im Taxonomy-Editor)_
+
+Die IDs sind standardmäßig schreibgeschützt und werden nur als Text angezeigt. Zum Bearbeiten muss erst die Checkbox „Bearbeiten freischalten" aktiviert werden – das verhindert versehentliche Änderungen an der Sync-Zuordnung.
 
 
 == BBB Live Tables Integration
@@ -252,6 +256,24 @@ docker compose up -d
 
 WordPress unter `http://localhost:8080` (Login: admin/admin). +
 Beide Plugins werden automatisch per Volume-Mount eingebunden.
+
+
+== Changelog
+
+=== v1.1.3 (2026-02-24)
+
+* **BBB-Daten Meta-Box** auf `sp_event` (Match-ID, Liga-ID, Spieltag, BBB-Link)
+* **BBB Spielfeld-ID** Feld im `sp_venue` Taxonomy-Editor
+* **Schreibschutz** für alle BBB-ID-Felder: IDs sind standardmäßig read-only, Checkbox „Bearbeiten freischalten" zum Entsperren
+* Meta-Box-Titel von „DBB-Daten" zu „BBB-Daten" vereinheitlicht
+
+=== v1.1.2 (2026-02-24)
+
+* `class_exists` Guards gegen OPcache-bedingte Klassenkollisionen mit BBB Live Tables
+
+=== v1.1.0 (2026-02-23)
+
+* Erstes offizielles Release mit GitHub Auto-Updater
 
 
 == Bekannte Einschränkungen

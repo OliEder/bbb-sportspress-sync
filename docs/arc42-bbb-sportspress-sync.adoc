@@ -419,7 +419,7 @@ Vier Tabs:
 * **Einstellungen:** Club-ID, Sync-Horizont, Cron-Intervall, Spieler-Import, Wartung
 * **Logs:** Filterbares Log (Alle/Fehler/Warnungen/Info) mit farblicher Hervorhebung
 
-Zusätzlich: Meta-Boxen auf `sp_player` (Person-ID) und `sp_team` (Team Permanent-ID) für manuelle Datenpflege.
+Zusätzlich: Meta-Boxen auf `sp_player` (Person-ID), `sp_team` (Team Permanent-ID), `sp_event` (Match-ID, Liga-ID) und `sp_venue` (Spielfeld-ID) für manuelle Datenpflege. Alle ID-Felder sind standardmäßig schreibgeschützt und müssen per Checkbox explizit zum Bearbeiten freigeschaltet werden.
 
 ==== BBB_Tables_Integration (~7 KB)
 
@@ -629,12 +629,32 @@ set_meta_if_empty($post_id, $key, $value)         // Nur wenn bestehender Wert l
 set_meta_safe($post_id, $key, $value, $is_update)  // Create→immer, Update→nur wenn leer
 ----
 
-=== Meta-Boxen für manuelle Datenpflege
+=== Meta-Boxen für manuelle Datenpflege (BBB-Daten)
 
-Admin-UI registriert Meta-Boxen auf:
+Admin-UI registriert Meta-Boxen auf allen relevanten SportsPress-Entitäten:
 
-* `sp_player` Edit-Screen: Feld für `_bbb_person_id` (BBB Person-ID)
-* `sp_team` Edit-Screen: Feld für `_bbb_team_permanent_id` (BBB Team Permanent-ID)
+[cols="1,2,2",options="header"]
+|===
+| Post Type / Taxonomy | BBB-Feld | Beschreibung
+
+| `sp_player` (Spieler)
+| `_bbb_person_id`
+| BBB Person-ID
+
+| `sp_team` (Team)
+| `_bbb_team_permanent_id`
+| BBB Team Permanent-ID
+
+| `sp_event` (Spiel)
+| `_bbb_match_id` + `_bbb_liga_id`
+| BBB Match-ID, Liga-ID, Spieltag (read-only), Direktlink zu basketball-bund.net
+
+| `sp_venue` (Spielort, Taxonomy)
+| `_bbb_spielfeld_id`
+| BBB Spielfeld-ID (im Term-Editor)
+|===
+
+**Schreibschutz:** Alle ID-Felder sind standardmäßig als Text angezeigt (read-only). Zum Bearbeiten muss erst die Checkbox „Bearbeiten freischalten" aktiviert werden. Das verhindert versehentliche Änderungen an der Sync-Zuordnung.
 
 Ermöglicht manuelle Zuordnung von SP-Posts zu BBB-Entitäten ohne vorherigen Sync.
 
@@ -832,6 +852,21 @@ Das Sync-Plugin speist SP-Daten in BBB Live Tables ein:
 [cols="1,1,4",options="header"]
 |===
 | Version | Datum | Änderungen
+
+| v1.1.3
+| 2026-02-24
+| BBB-Daten Meta-Box auf `sp_event` (Match-ID, Liga-ID, Spieltag, BBB-Link) und
+`sp_venue` Taxonomy-Editor (Spielfeld-ID). Schreibschutz für alle BBB-ID-Felder:
+IDs standardmäßig read-only, Checkbox „Bearbeiten freischalten" zum Entsperren.
+Meta-Box-Titel von „DBB-Daten" zu „BBB-Daten" vereinheitlicht.
+
+| v1.1.2
+| 2026-02-24
+| `class_exists` Guards gegen OPcache-bedingte Klassenkollisionen mit BBB Live Tables.
+
+| v1.1.0
+| 2026-02-23
+| GitHub Auto-Updater. Meta-Boxen für Person-ID / Team-PID.
 
 | v1.0.0
 | 2026-02-23

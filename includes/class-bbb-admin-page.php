@@ -25,10 +25,15 @@ class BBB_Admin_Page {
         add_action( 'wp_ajax_bbb_start_sync', [ $this, 'ajax_start_sync' ] );
         add_action( 'wp_ajax_bbb_sync_progress', [ $this, 'ajax_sync_progress' ] );
 
-        // Meta-Box "DBB-Daten" auf sp_player + sp_team
+        // Meta-Box "DBB-Daten" auf sp_player + sp_team + sp_event
         add_action( 'add_meta_boxes', [ $this, 'add_dbb_meta_boxes' ] );
         add_action( 'save_post_sp_player', [ $this, 'save_dbb_meta' ] );
         add_action( 'save_post_sp_team', [ $this, 'save_dbb_meta' ] );
+        add_action( 'save_post_sp_event', [ $this, 'save_dbb_meta' ] );
+
+        // Venue-Taxonomie: BBB-Felder im Term-Editor
+        add_action( 'sp_venue_edit_form_fields', [ $this, 'render_venue_bbb_fields' ], 10, 2 );
+        add_action( 'edited_sp_venue', [ $this, 'save_venue_bbb_fields' ] );
     }
 
     public function add_menu(): void {
@@ -308,7 +313,7 @@ class BBB_Admin_Page {
     public function add_dbb_meta_boxes(): void {
         add_meta_box(
             'bbb_dbb_data',
-            'DBB-Daten',
+            'BBB-Daten',
             [ $this, 'render_dbb_meta_box' ],
             'sp_player',
             'side',
@@ -316,9 +321,17 @@ class BBB_Admin_Page {
         );
         add_meta_box(
             'bbb_dbb_data',
-            'DBB-Daten',
+            'BBB-Daten',
             [ $this, 'render_dbb_meta_box' ],
             'sp_team',
+            'side',
+            'default'
+        );
+        add_meta_box(
+            'bbb_dbb_data',
+            'BBB-Daten',
+            [ $this, 'render_dbb_meta_box' ],
+            'sp_event',
             'side',
             'default'
         );
@@ -331,31 +344,99 @@ class BBB_Admin_Page {
             $person_id = get_post_meta( $post->ID, '_bbb_person_id', true );
             ?>
             <p>
-                <label for="bbb_person_id"><strong>BBB Person-ID</strong></label><br>
-                <input type="number" id="bbb_person_id" name="bbb_person_id"
-                       value="<?php echo esc_attr( $person_id ); ?>"
-                       class="widefat" min="1" placeholder="z.B. 12345">
-                <span class="description" style="font-size:11px;">
-                    Verknüpft diesen Spieler mit der BBB-Datenbank.<br>
-                    Wird vom Sync automatisch gesetzt.
+                <label><strong>BBB Person-ID</strong></label><br>
+                <span class="bbb-id-display" style="font-family:monospace; font-size:13px;">
+                    <?php echo $person_id ? esc_html( $person_id ) : '<em style="color:#999;">nicht gesetzt</em>'; ?>
                 </span>
+                <input type="number" name="bbb_person_id"
+                       value="<?php echo esc_attr( $person_id ); ?>"
+                       class="widefat bbb-id-input" min="1" placeholder="z.B. 12345"
+                       style="display:none;">
             </p>
             <?php
+
         } elseif ( $post->post_type === 'sp_team' ) {
             $permanent_id = get_post_meta( $post->ID, '_bbb_team_permanent_id', true );
             ?>
             <p>
-                <label for="bbb_team_permanent_id"><strong>BBB Team Permanent-ID</strong></label><br>
-                <input type="number" id="bbb_team_permanent_id" name="bbb_team_permanent_id"
-                       value="<?php echo esc_attr( $permanent_id ); ?>"
-                       class="widefat" min="1" placeholder="z.B. 67890">
-                <span class="description" style="font-size:11px;">
-                    Verknüpft dieses Team mit der BBB-Datenbank.<br>
-                    Wird vom Sync automatisch gesetzt.
+                <label><strong>BBB Team Permanent-ID</strong></label><br>
+                <span class="bbb-id-display" style="font-family:monospace; font-size:13px;">
+                    <?php echo $permanent_id ? esc_html( $permanent_id ) : '<em style="color:#999;">nicht gesetzt</em>'; ?>
                 </span>
+                <input type="number" name="bbb_team_permanent_id"
+                       value="<?php echo esc_attr( $permanent_id ); ?>"
+                       class="widefat bbb-id-input" min="1" placeholder="z.B. 67890"
+                       style="display:none;">
             </p>
             <?php
+
+        } elseif ( $post->post_type === 'sp_event' ) {
+            $match_id  = get_post_meta( $post->ID, '_bbb_match_id', true );
+            $liga_id   = get_post_meta( $post->ID, '_bbb_liga_id', true );
+            $match_day = get_post_meta( $post->ID, '_bbb_match_day', true );
+            ?>
+            <p>
+                <label><strong>BBB Match-ID</strong></label><br>
+                <span class="bbb-id-display" style="font-family:monospace; font-size:13px;">
+                    <?php echo $match_id ? esc_html( $match_id ) : '<em style="color:#999;">nicht gesetzt</em>'; ?>
+                </span>
+                <input type="number" name="bbb_match_id"
+                       value="<?php echo esc_attr( $match_id ); ?>"
+                       class="widefat bbb-id-input" min="1" placeholder="z.B. 123456"
+                       style="display:none;">
+            </p>
+            <p>
+                <label><strong>BBB Liga-ID</strong></label><br>
+                <span class="bbb-id-display" style="font-family:monospace; font-size:13px;">
+                    <?php echo $liga_id ? esc_html( $liga_id ) : '<em style="color:#999;">nicht gesetzt</em>'; ?>
+                </span>
+                <input type="number" name="bbb_liga_id"
+                       value="<?php echo esc_attr( $liga_id ); ?>"
+                       class="widefat bbb-id-input" min="1" placeholder="z.B. 4567"
+                       style="display:none;">
+            </p>
+            <?php if ( $match_day ) : ?>
+            <p>
+                <span class="description" style="font-size:11px;">Spieltag: <strong><?php echo esc_html( $match_day ); ?></strong></span>
+            </p>
+            <?php endif; ?>
+            <?php if ( $match_id ) : ?>
+            <p style="margin-top:8px;">
+                <a href="https://www.basketball-bund.net/game/id/<?php echo esc_attr( $match_id ); ?>"
+                   target="_blank" class="button button-small">
+                    ↗ Auf basketball-bund.net anzeigen
+                </a>
+            </p>
+            <?php endif; ?>
+            <?php
         }
+
+        // Unlock-Checkbox (alle Post-Types)
+        ?>
+        <hr style="margin:10px 0 8px;">
+        <label style="font-size:11px; color:#999; cursor:pointer;">
+            <input type="checkbox" class="bbb-unlock-checkbox" style="margin:0 4px 0 0;">
+            Bearbeiten freischalten
+        </label>
+        <p class="description" style="font-size:10px; color:#bbb; margin-top:4px;">
+            Diese IDs werden automatisch vom Sync gesetzt.<br>
+            Manuelle Änderungen können die Zuordnung zerstören.
+        </p>
+        <script>
+        (function() {
+            var box = document.querySelector('#bbb_dbb_data');
+            if (!box) return;
+            var cb = box.querySelector('.bbb-unlock-checkbox');
+            if (!cb) return;
+            cb.addEventListener('change', function() {
+                var displays = box.querySelectorAll('.bbb-id-display');
+                var inputs   = box.querySelectorAll('.bbb-id-input');
+                displays.forEach(function(el) { el.style.display = cb.checked ? 'none' : ''; });
+                inputs.forEach(function(el)   { el.style.display = cb.checked ? '' : 'none'; });
+            });
+        })();
+        </script>
+        <?php
     }
 
     public function save_dbb_meta( int $post_id ): void {
@@ -381,6 +462,89 @@ class BBB_Admin_Page {
                 update_post_meta( $post_id, '_bbb_team_permanent_id', $val );
             } else {
                 delete_post_meta( $post_id, '_bbb_team_permanent_id' );
+            }
+        }
+
+        if ( $post_type === 'sp_event' ) {
+            if ( isset( $_POST['bbb_match_id'] ) ) {
+                $val = absint( $_POST['bbb_match_id'] );
+                if ( $val > 0 ) {
+                    update_post_meta( $post_id, '_bbb_match_id', $val );
+                } else {
+                    delete_post_meta( $post_id, '_bbb_match_id' );
+                }
+            }
+            if ( isset( $_POST['bbb_liga_id'] ) ) {
+                $val = absint( $_POST['bbb_liga_id'] );
+                if ( $val > 0 ) {
+                    update_post_meta( $post_id, '_bbb_liga_id', $val );
+                } else {
+                    delete_post_meta( $post_id, '_bbb_liga_id' );
+                }
+            }
+        }
+    }
+
+    // ═════════════════════════════════════════
+    // VENUE TAXONOMY: BBB-Felder
+    // ═════════════════════════════════════════
+
+    /**
+     * BBB-Felder im Venue-Term-Editor anzeigen (Edit-Formular).
+     */
+    public function render_venue_bbb_fields( \WP_Term $term, string $taxonomy ): void {
+        $spielfeld_id = get_term_meta( $term->term_id, '_bbb_spielfeld_id', true );
+        wp_nonce_field( 'bbb_venue_meta', 'bbb_venue_meta_nonce' );
+        ?>
+        <tr class="form-field">
+            <th scope="row">
+                <label>BBB Spielfeld-ID</label>
+            </th>
+            <td>
+                <span id="bbb-venue-id-display" style="font-family:monospace; font-size:13px;">
+                    <?php echo $spielfeld_id ? esc_html( $spielfeld_id ) : '<em style="color:#999;">nicht gesetzt</em>'; ?>
+                </span>
+                <input type="number" id="bbb_spielfeld_id" name="bbb_spielfeld_id"
+                       value="<?php echo esc_attr( $spielfeld_id ); ?>"
+                       min="1" placeholder="z.B. 789" style="width:200px; display:none;">
+                <p class="description" style="margin-top:8px;">
+                    <label style="cursor:pointer; color:#999;">
+                        <input type="checkbox" id="bbb-venue-unlock" style="margin:0 4px 0 0;">
+                        Bearbeiten freischalten
+                    </label><br>
+                    <span style="font-size:11px; color:#bbb;">
+                        Wird vom Sync automatisch gesetzt. Manuelle Änderungen können die Zuordnung zerstören.
+                    </span>
+                </p>
+                <script>
+                (function() {
+                    var cb = document.getElementById('bbb-venue-unlock');
+                    if (!cb) return;
+                    cb.addEventListener('change', function() {
+                        document.getElementById('bbb-venue-id-display').style.display = cb.checked ? 'none' : '';
+                        document.getElementById('bbb_spielfeld_id').style.display = cb.checked ? '' : 'none';
+                    });
+                })();
+                </script>
+            </td>
+        </tr>
+        <?php
+    }
+
+    /**
+     * BBB-Felder beim Speichern des Venue-Terms sichern.
+     */
+    public function save_venue_bbb_fields( int $term_id ): void {
+        if ( ! isset( $_POST['bbb_venue_meta_nonce'] ) ) return;
+        if ( ! wp_verify_nonce( $_POST['bbb_venue_meta_nonce'], 'bbb_venue_meta' ) ) return;
+        if ( ! current_user_can( 'manage_options' ) ) return;
+
+        if ( isset( $_POST['bbb_spielfeld_id'] ) ) {
+            $val = absint( $_POST['bbb_spielfeld_id'] );
+            if ( $val > 0 ) {
+                update_term_meta( $term_id, '_bbb_spielfeld_id', $val );
+            } else {
+                delete_term_meta( $term_id, '_bbb_spielfeld_id' );
             }
         }
     }
