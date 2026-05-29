@@ -19,6 +19,7 @@ package-lock.json
 
 # Composer / PHP tooling
 vendor/
+.phpunit.result.cache
 
 # Logs
 *.log
