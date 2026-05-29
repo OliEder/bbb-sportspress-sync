@@ -413,7 +413,7 @@ class BBB_Player_Sync {
         $nachname  = $person['nachname'] ?? '';
         $full_name = trim( "{$vorname} {$nachname}" );
 
-        if ( empty( $full_name ) || $full_name === '*** ****' ) {
+        if ( empty( $full_name ) || '*** ****' === $full_name ) {
             ++$this->players_skipped;
             return null;
         }
@@ -421,7 +421,7 @@ class BBB_Player_Sync {
         $jersey_no = $player_data['no'] ?? '';
         $person_id = (int) ( $person['id'] ?? 0 );
 
-        // Find existing: person_id (unique) → Name-Fallback
+        // Find existing: person_id (unique) → Name-Fallback.
         $existing_id = null;
 
         // 1. Person-ID (unique über alle Teams – primärer Lookup)
@@ -442,7 +442,7 @@ class BBB_Player_Sync {
         if ( $is_update ) {
             // ═══ UPDATE: Titel + Content NIE überschreiben ═══
             $wp_id = $existing_id;
-            // Spieler-Titel nur bei Adoption (noch keine _bbb_person_id) setzen
+            // Spieler-Titel nur bei Adoption (noch keine _bbb_person_id) setzen.
             if ( ! get_post_meta( $existing_id, '_bbb_person_id', true ) ) {
                 wp_update_post(
                     [
@@ -469,25 +469,25 @@ class BBB_Player_Sync {
             ++$this->players_created;
         }
 
-        // BBB-interne Meta (Primary Keys – immer aktualisieren)
+        // BBB-interne Meta (Primary Keys – immer aktualisieren).
         if ( $person_id ) {
 			update_post_meta( $wp_id, '_bbb_person_id', $person_id );
         }
         update_post_meta( $wp_id, '_bbb_player_id', $player_id );
 
-        // SP-Felder: Nur setzen wenn leer (schützt manuelle Änderungen)
-        if ( $jersey_no !== '' && $jersey_no !== '**' && $jersey_no !== '0' ) {
+        // SP-Felder: Nur setzen wenn leer (schützt manuelle Änderungen).
+        if ( '' !== $jersey_no && '**' !== $jersey_no && '0' !== $jersey_no ) {
             $existing_number = get_post_meta( $wp_id, 'sp_number', true );
-            if ( $existing_number === '' || $existing_number === false ) {
+            if ( '' === $existing_number || false === $existing_number ) {
                 update_post_meta( $wp_id, 'sp_number', $jersey_no );
             }
         }
 
-        // v3.5.0: Team-Zuordnung robust setzen
-        // SportsPress nutzt 'sp_team' als MULTIPLE post_meta (nicht Taxonomy!)
+        // v3.5.0: Team-Zuordnung robust setzen.
+        // SportsPress nutzt 'sp_team' als MULTIPLE post_meta (nicht Taxonomy!).
         update_post_meta( $wp_id, 'sp_current_team', $team_wp_id );
 
-        // sp_team: prüfe ob schon zugewiesen (direkte DB-Query)
+        // sp_team: prüfe ob schon zugewiesen (direkte DB-Query).
         global $wpdb;
         $already_assigned = $wpdb->get_var(
             $wpdb->prepare(
@@ -501,8 +501,8 @@ class BBB_Player_Sync {
             add_post_meta( $wp_id, 'sp_team', $team_wp_id );
         }
 
-        // v3.5.0: Auch sp_past_team setzen (SportsPress zeigt damit die Team-Dropdown-Zuordnung)
-        // Taxonomien vom Event übernehmen
+        // v3.5.0: Auch sp_past_team setzen (SportsPress zeigt damit die Team-Dropdown-Zuordnung).
+        // Taxonomien vom Event übernehmen.
         $event_leagues = wp_get_object_terms( $event_wp_id, 'sp_league', [ 'fields' => 'ids' ] );
         if ( ! is_wp_error( $event_leagues ) && ! empty( $event_leagues ) ) {
             wp_set_object_terms( $wp_id, $event_leagues, 'sp_league', true );
@@ -519,7 +519,7 @@ class BBB_Player_Sync {
      * Ensure player list exists for team + season.
      */
     public function ensure_player_list( int $team_wp_id, int $season_term_id, int $league_term_id ): int|false {
-        // v3.5.0: Direkte DB-Query statt WP_Query (Cache-Problem)
+        // v3.5.0: Direkte DB-Query statt WP_Query (Cache-Problem).
         global $wpdb;
         $existing = $wpdb->get_var(
             $wpdb->prepare(

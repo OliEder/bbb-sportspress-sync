@@ -1832,7 +1832,7 @@ class BBB_Admin_Page {
         }
 
         if ( 'all' !== $filter ) {
-            $logs = array_filter( $logs, fn( $l ) => $filter === ( $l['level'] ?? 'info' ) );
+            $logs = array_filter( $logs, fn( $l ) => ( $l['level'] ?? 'info' ) === $filter );
         }
         ?>
         <style>

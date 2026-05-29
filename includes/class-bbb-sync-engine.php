@@ -1084,7 +1084,7 @@ class BBB_Sync_Engine {
             } elseif ( 'future' === $current_status && 'draft' === $post_status ) {
                 $update_data['post_status'] = 'draft'; // Abgesagt.
             }
-            // 'publish' oder manuell gesetzter Status bleibt IMMER erhalten
+            // 'publish' oder manuell gesetzter Status bleibt IMMER erhalten.
 
             // post_content (Spielbericht) NIE anfassen.
             wp_update_post( $update_data );
@@ -1144,10 +1144,10 @@ class BBB_Sync_Engine {
 					continue;
                 }
                 foreach ( $data as $k => $v ) {
-                    if ( $k === 'outcome' ) {
+                    if ( 'outcome' === $k ) {
 						continue;
                     }
-                    if ( $v !== '' && $v !== '0' && $v !== null ) {
+                    if ( '' !== $v && '0' !== $v && null !== $v ) {
                         $has_existing_results = true;
                         break 2;
                     }
@@ -1155,7 +1155,7 @@ class BBB_Sync_Engine {
             }
         }
 
-        if ( $result_str !== null && str_contains( (string) $result_str, ':' ) ) {
+        if ( null !== $result_str && str_contains( (string) $result_str, ':' ) ) {
             // API hat Ergebnis → nur schreiben wenn noch kein Ergebnis vorhanden.
             if ( ! $has_existing_results ) {
                 $parts      = explode( ':', $result_str );
@@ -1217,7 +1217,7 @@ class BBB_Sync_Engine {
         $players_enabled = (bool) get_option( 'bbb_sync_players_enabled', false );
         $boxscore_data   = null;
 
-        if ( $result_str !== null && $players_enabled ) {
+        if ( null !== $result_str && $players_enabled ) {
             // Nur eigene Spieler? → Eigene Team-IDs als Filter übergeben.
             $own_pids = [];
             if ( (bool) get_option( 'bbb_sync_players_own_only', true ) ) {
@@ -1567,7 +1567,7 @@ class BBB_Sync_Engine {
         // Prio 2: matchInfo-Endpoint (immer als Fallback).
         if ( ! $spielfeld || empty( $spielfeld['id'] ) ) {
             // Nur für beendete Spiele matchInfo laden (API-Call sparen).
-            if ( $result_str === null ) {
+            if ( null === $result_str ) {
 				return;
             }
 
@@ -1741,7 +1741,7 @@ class BBB_Sync_Engine {
         }
 
         $code = wp_remote_retrieve_response_code( $response );
-        if ( $code !== 200 ) {
+        if ( 200 !== $code ) {
             $this->log( "Geocoding HTTP {$code}", 'error' );
             return null;
         }
@@ -2108,7 +2108,7 @@ class BBB_Sync_Engine {
      * Diese Methode nutzt die Einstellungen oder findet den Slug automatisch.
      */
     private function get_main_result_slug(): ?string {
-        if ( self::$main_result_slug !== null ) {
+        if ( null !== self::$main_result_slug ) {
 			return self::$main_result_slug;
         }
 
@@ -2158,7 +2158,7 @@ class BBB_Sync_Engine {
      * @return string[] Array von Slugs, leer wenn nichts konfiguriert
      */
     public function get_result_slugs(): array {
-        if ( self::$result_slugs_cache !== null ) {
+        if ( null !== self::$result_slugs_cache ) {
 			return self::$result_slugs_cache;
         }
 
@@ -2169,7 +2169,7 @@ class BBB_Sync_Engine {
     }
 
     private function set_meta_if_not_null( int $post_id, string $key, mixed $value ): void {
-        if ( $value !== null ) {
+        if ( null !== $value ) {
 			update_post_meta( $post_id, $key, $value );
         }
     }
@@ -2179,11 +2179,11 @@ class BBB_Sync_Engine {
      * Schützt manuell eingetragene Daten vor Überschreibung durch den Sync.
      */
     private function set_meta_if_empty( int $post_id, string $key, mixed $value ): void {
-        if ( $value === null || $value === '' || $value === 0 ) {
+        if ( null === $value || '' === $value || 0 === $value ) {
 			return;
         }
         $existing = get_post_meta( $post_id, $key, true );
-        if ( $existing !== '' && $existing !== '0' && $existing !== false ) {
+        if ( '' !== $existing && '0' !== $existing && false !== $existing ) {
 			return;
         }
         update_post_meta( $post_id, $key, $value );
@@ -2194,7 +2194,7 @@ class BBB_Sync_Engine {
      * Kombiniert set_meta_if_not_null + set_meta_if_empty.
      */
     private function set_meta_safe( int $post_id, string $key, mixed $value, bool $is_update ): void {
-        if ( $value === null ) {
+        if ( null === $value ) {
 			return;
         }
         if ( $is_update ) {
