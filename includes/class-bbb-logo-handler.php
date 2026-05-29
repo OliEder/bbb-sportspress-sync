@@ -65,13 +65,13 @@ class BBB_Logo_Handler {
             && ! empty( $cached['fetched_at'] )
             && ( time() - (int) $cached['fetched_at'] ) < $cache_duration
         ) {
-            // Prüfe ob Attachment noch existiert
+            // Prüfe ob Attachment noch existiert.
             if ( wp_attachment_is_image( $cached['attachment_id'] ) ) {
                 $this->club_logo_cache[ $club_id ] = $cached['attachment_id'];
                 set_post_thumbnail( $team_wp_id, $cached['attachment_id'] );
                 return $cached['attachment_id'];
             }
-            // Attachment gelöscht → Cache invalidieren
+            // Attachment gelöscht → Cache invalidieren.
         }
 
         // ── 3. Logo von API laden ──
@@ -115,13 +115,13 @@ class BBB_Logo_Handler {
      * Updates existing file if attachment with same name exists.
      */
     private function save_to_media_library( string $png_data, string $filename, int $parent_id ): int|false {
-        // Check if attachment already exists (avoid duplicates)
+        // Check if attachment already exists (avoid duplicates).
         $existing = $this->find_existing_attachment( $filename );
         if ( $existing ) {
             $filepath = get_attached_file( $existing );
             if ( $filepath ) {
                 file_put_contents( $filepath, $png_data );
-                // Regenerate thumbnails
+                // Regenerate thumbnails.
                 require_once ABSPATH . 'wp-admin/includes/image.php';
                 $metadata = wp_generate_attachment_metadata( $existing, $filepath );
                 wp_update_attachment_metadata( $existing, $metadata );
@@ -129,7 +129,7 @@ class BBB_Logo_Handler {
             }
         }
 
-        // Upload directory
+        // Upload directory.
         $upload_dir = wp_upload_dir();
         $filepath   = $upload_dir['path'] . '/' . $filename;
 

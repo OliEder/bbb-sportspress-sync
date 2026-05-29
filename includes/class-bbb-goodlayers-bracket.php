@@ -463,7 +463,7 @@ class BBB_Goodlayers_Bracket {
         );
 
         $liga_id = 0;
-        if ( $atts['liga-source'] === 'custom' ) {
+        if ( 'custom' === $atts['liga-source'] ) {
             $liga_id = (int) $atts['liga-id'];
         } elseif ( is_numeric( $atts['liga-source'] ) ) {
             $liga_id = (int) $atts['liga-source'];
@@ -478,14 +478,14 @@ class BBB_Goodlayers_Bracket {
         $table_atts = [
             'liga_id'              => $liga_id,
             'title'                => $atts['title'],
-            'highlight_club'       => $atts['highlight-own'] === 'enable' ? (int) get_option( 'bbb_sync_club_id', 0 ) : 0,
+            'highlight_club'       => 'enable' === $atts['highlight-own'] ? (int) get_option( 'bbb_sync_club_id', 0 ) : 0,
             'cache'                => (int) $atts['cache'],
-            'show_logos'           => $atts['show-logos'] === 'enable' ? 'true' : 'false',
+            'show_logos'           => 'enable' === $atts['show-logos'] ? 'true' : 'false',
             'columns_desktop'      => $atts['columns-desktop'],
             'columns_mobile'       => $atts['columns-mobile'],
             'team_display_desktop' => $atts['team-display-desktop'],
             'team_display_mobile'  => $atts['team-display-mobile'],
-            'show_gb'              => $atts['show-gb'] === 'enable' ? 'true' : 'false',
+            'show_gb'              => 'enable' === $atts['show-gb'] ? 'true' : 'false',
         ];
 
         $table  = new BBB_Live_Table();
