@@ -43,24 +43,24 @@ class BBB_Sync_Engine {
     private static ?string $main_result_slug = null;
 
     private array $stats = [
-        'teams_created'      => 0,
-        'teams_updated'      => 0,
-        'teams_deduped'      => 0,
-        'events_created'     => 0,
-        'events_updated'     => 0,
-        'events_deleted'     => 0,
-        'events_skipped'     => 0,
-        'venues_created'     => 0,
-        'venues_updated'     => 0,
-        'players_created'    => 0,
-        'players_updated'    => 0,
-        'tables_created'     => 0,
-        'tables_updated'     => 0,
-        'logos_fetched'      => 0,
-        'leagues_found'      => 0,
+        'teams_created'       => 0,
+        'teams_updated'       => 0,
+        'teams_deduped'       => 0,
+        'events_created'      => 0,
+        'events_updated'      => 0,
+        'events_deleted'      => 0,
+        'events_skipped'      => 0,
+        'venues_created'      => 0,
+        'venues_updated'      => 0,
+        'players_created'     => 0,
+        'players_updated'     => 0,
+        'tables_created'      => 0,
+        'tables_updated'      => 0,
+        'logos_fetched'       => 0,
+        'leagues_found'       => 0,
         'liga_matches_synced' => 0,
-        'api_calls'          => 0,
-        'errors'             => 0,
+        'api_calls'           => 0,
+        'errors'              => 0,
     ];
 
     public function __construct() {
@@ -84,18 +84,22 @@ class BBB_Sync_Engine {
      */
     private function ensure_sync_user(): void {
         $user = get_user_by( 'login', self::SYNC_USER_LOGIN );
-        if ( $user ) return;
+        if ( $user ) {
+			return;
+        }
 
-        $user_id = wp_insert_user([
-            'user_login'   => self::SYNC_USER_LOGIN,
-            'user_pass'    => wp_generate_password( 32, true, true ),
-            'user_email'   => 'sync@basketball-bund.net', // Nicht-existierende Adresse, nur Pflichtfeld
-            'display_name' => 'basketball-bund.net',
-            'first_name'   => 'BBB',
-            'last_name'    => 'Daten-Sync',
-            'description'  => 'Automatischer Import von Ligadaten aus basketball-bund.net',
-            'role'         => 'editor',
-        ]);
+        $user_id = wp_insert_user(
+            [
+				'user_login'   => self::SYNC_USER_LOGIN,
+				'user_pass'    => wp_generate_password( 32, true, true ),
+				'user_email'   => 'sync@basketball-bund.net', // Nicht-existierende Adresse, nur Pflichtfeld
+				'display_name' => 'basketball-bund.net',
+				'first_name'   => 'BBB',
+				'last_name'    => 'Daten-Sync',
+				'description'  => 'Automatischer Import von Ligadaten aus basketball-bund.net',
+				'role'         => 'editor',
+			]
+        );
 
         if ( is_wp_error( $user_id ) ) {
             $this->log( 'Sync-User Fehler: ' . $user_id->get_error_message(), 'error' );
@@ -125,13 +129,15 @@ class BBB_Sync_Engine {
         // Result column: Points – existierenden suchen oder "pts" erstellen
         $main_slug = $this->get_main_result_slug();
         if ( ! $main_slug ) {
-            $result_id = wp_insert_post([
-                'post_type'   => 'sp_result',
-                'post_title'  => 'Punkte',
-                'post_name'   => 'pts',
-                'post_status' => 'publish',
-                'menu_order'  => 1,
-            ]);
+            $result_id = wp_insert_post(
+                [
+					'post_type'   => 'sp_result',
+					'post_title'  => 'Punkte',
+					'post_name'   => 'pts',
+					'post_status' => 'publish',
+					'menu_order'  => 1,
+				]
+            );
             if ( $result_id && ! is_wp_error( $result_id ) ) {
                 update_post_meta( $result_id, 'sp_format', 'number' );
                 update_post_meta( $result_id, 'sp_precision', 0 );
@@ -140,36 +146,61 @@ class BBB_Sync_Engine {
             self::$main_result_slug = 'pts';
         }
 
-        $outcomes = [ 'win' => 'Sieg', 'loss' => 'Niederlage', 'draw' => 'Unentschieden' ];
+        $outcomes = [
+			'win'  => 'Sieg',
+			'loss' => 'Niederlage',
+			'draw' => 'Unentschieden',
+		];
         foreach ( $outcomes as $slug => $label ) {
             if ( ! get_page_by_path( $slug, OBJECT, 'sp_outcome' ) ) {
-                wp_insert_post([
-                    'post_type' => 'sp_outcome', 'post_title' => $label,
-                    'post_name' => $slug, 'post_status' => 'publish',
-                ]);
+                wp_insert_post(
+                    [
+						'post_type'   => 'sp_outcome',
+						'post_title'  => $label,
+						'post_name'   => $slug,
+						'post_status' => 'publish',
+					]
+                );
             }
         }
 
         // Basketball Performance-Typen
         $performance_types = [
-            'pts' => ['PTS',1], 'ast' => ['AST',2], 'stl' => ['STL',3], 'blk' => ['BLK',4],
-            'fgm' => ['FGM',5], 'fga' => ['FGA',6], '3pm' => ['3PM',7], '3pa' => ['3PA',8],
-            'ftm' => ['FTM',9], 'fta' => ['FTA',10], 'off' => ['OFF',11], 'def' => ['DEF',12],
-            'reb' => ['REB',13], 'to' => ['TO',14], 'pf' => ['PF',15], 'eff' => ['EFF',16],
-            'min' => ['MIN',17],
+            'pts' => [ 'PTS', 1 ],
+			'ast' => [ 'AST', 2 ],
+			'stl' => [ 'STL', 3 ],
+			'blk' => [ 'BLK', 4 ],
+            'fgm' => [ 'FGM', 5 ],
+			'fga' => [ 'FGA', 6 ],
+			'3pm' => [ '3PM', 7 ],
+			'3pa' => [ '3PA', 8 ],
+            'ftm' => [ 'FTM', 9 ],
+			'fta' => [ 'FTA', 10 ],
+			'off' => [ 'OFF', 11 ],
+			'def' => [ 'DEF', 12 ],
+            'reb' => [ 'REB', 13 ],
+			'to'  => [ 'TO', 14 ],
+			'pf'  => [ 'PF', 15 ],
+			'eff' => [ 'EFF', 16 ],
+            'min' => [ 'MIN', 17 ],
         ];
 
         $created_perf = 0;
         foreach ( $performance_types as $slug => [ $label, $order ] ) {
             if ( ! get_page_by_path( $slug, OBJECT, 'sp_performance' ) ) {
-                $pid = wp_insert_post([
-                    'post_type' => 'sp_performance', 'post_title' => $label,
-                    'post_name' => $slug, 'post_status' => 'publish', 'menu_order' => $order,
-                ]);
+                $pid = wp_insert_post(
+                    [
+						'post_type'   => 'sp_performance',
+						'post_title'  => $label,
+						'post_name'   => $slug,
+						'post_status' => 'publish',
+						'menu_order'  => $order,
+					]
+                );
                 if ( $pid && ! is_wp_error( $pid ) ) {
                     update_post_meta( $pid, 'sp_format', 'number' );
                     update_post_meta( $pid, 'sp_precision', 0 );
-                    $created_perf++;
+                    ++$created_perf;
                 }
             }
         }
@@ -191,60 +222,76 @@ class BBB_Sync_Engine {
         global $wpdb;
 
         // Alle Teams mit _bbb_team_permanent_id gruppiert laden
-        $results = $wpdb->get_results( "
+        $results = $wpdb->get_results(
+            "
             SELECT p.ID, pm.meta_value AS permanent_id
             FROM {$wpdb->posts} p
             INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_bbb_team_permanent_id'
             WHERE p.post_type = 'sp_team' AND p.post_status IN ('publish','draft')
             ORDER BY pm.meta_value, p.ID ASC
-        " );
+        "
+        );
 
-        if ( empty( $results ) ) return;
+        if ( empty( $results ) ) {
+			return;
+        }
 
         // Gruppiere nach permanent_id
         $groups = [];
         foreach ( $results as $row ) {
             $pid = (int) $row->permanent_id;
-            if ( ! $pid ) continue;
+            if ( ! $pid ) {
+				continue;
+            }
             $groups[ $pid ][] = (int) $row->ID;
         }
 
         $total_removed = 0;
 
         foreach ( $groups as $permanent_id => $wp_ids ) {
-            if ( count( $wp_ids ) <= 1 ) continue;
+            if ( count( $wp_ids ) <= 1 ) {
+				continue;
+            }
 
             // Ersten behalten (ältester = niedrigste ID)
-            $keep_id = array_shift( $wp_ids );
+            $keep_id    = array_shift( $wp_ids );
             $keep_title = get_the_title( $keep_id );
 
             foreach ( $wp_ids as $dup_id ) {
                 $dup_title = get_the_title( $dup_id );
 
                 // Alle sp_team Referenzen auf Events umhängen
-                $events_with_dup = $wpdb->get_col( $wpdb->prepare(
-                    "SELECT post_id FROM {$wpdb->postmeta}
+                $events_with_dup = $wpdb->get_col(
+                    $wpdb->prepare(
+                        "SELECT post_id FROM {$wpdb->postmeta}
                      WHERE meta_key = 'sp_team' AND meta_value = %d",
-                    $dup_id
-                ) );
+                        $dup_id
+                    )
+                );
 
                 foreach ( $events_with_dup as $event_id ) {
                     // Duplikat-Referenz durch Keep-Referenz ersetzen
                     $wpdb->update(
                         $wpdb->postmeta,
                         [ 'meta_value' => $keep_id ],
-                        [ 'post_id' => (int) $event_id, 'meta_key' => 'sp_team', 'meta_value' => $dup_id ],
+                        [
+							'post_id'    => (int) $event_id,
+							'meta_key'   => 'sp_team',
+							'meta_value' => $dup_id,
+						],
                         [ '%d' ],
                         [ '%d', '%s', '%d' ]
                     );
                 }
 
                 // sp_results Meta: Team-IDs in serialisierten Arrays ersetzen
-                $events_with_results = $wpdb->get_results( $wpdb->prepare(
-                    "SELECT post_id, meta_value FROM {$wpdb->postmeta}
+                $events_with_results = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT post_id, meta_value FROM {$wpdb->postmeta}
                      WHERE meta_key = 'sp_results' AND meta_value LIKE %s",
-                    '%' . $wpdb->esc_like( (string) $dup_id ) . '%'
-                ) );
+                        '%' . $wpdb->esc_like( (string) $dup_id ) . '%'
+                    )
+                );
 
                 foreach ( $events_with_results as $row ) {
                     $data = maybe_unserialize( $row->meta_value );
@@ -256,11 +303,13 @@ class BBB_Sync_Engine {
                 }
 
                 // sp_players Meta: Team-IDs ersetzen
-                $events_with_players = $wpdb->get_results( $wpdb->prepare(
-                    "SELECT post_id, meta_value FROM {$wpdb->postmeta}
+                $events_with_players = $wpdb->get_results(
+                    $wpdb->prepare(
+                        "SELECT post_id, meta_value FROM {$wpdb->postmeta}
                      WHERE meta_key = 'sp_players' AND meta_value LIKE %s",
-                    '%' . $wpdb->esc_like( (string) $dup_id ) . '%'
-                ) );
+                        '%' . $wpdb->esc_like( (string) $dup_id ) . '%'
+                    )
+                );
 
                 foreach ( $events_with_players as $row ) {
                     $data = maybe_unserialize( $row->meta_value );
@@ -275,14 +324,20 @@ class BBB_Sync_Engine {
                 $wpdb->update(
                     $wpdb->postmeta,
                     [ 'meta_value' => $keep_id ],
-                    [ 'meta_key' => 'sp_team', 'meta_value' => $dup_id ],
+                    [
+						'meta_key'   => 'sp_team',
+						'meta_value' => $dup_id,
+					],
                     [ '%d' ],
                     [ '%s', '%d' ]
                 );
                 $wpdb->update(
                     $wpdb->postmeta,
                     [ 'meta_value' => $keep_id ],
-                    [ 'meta_key' => 'sp_current_team', 'meta_value' => $dup_id ],
+                    [
+						'meta_key'   => 'sp_current_team',
+						'meta_value' => $dup_id,
+					],
                     [ '%d' ],
                     [ '%s', '%d' ]
                 );
@@ -291,7 +346,10 @@ class BBB_Sync_Engine {
                 $wpdb->update(
                     $wpdb->postmeta,
                     [ 'meta_value' => $keep_id ],
-                    [ 'meta_key' => '_bbb_team_wp_id', 'meta_value' => $dup_id ],
+                    [
+						'meta_key'   => '_bbb_team_wp_id',
+						'meta_value' => $dup_id,
+					],
                     [ '%d' ],
                     [ '%s', '%d' ]
                 );
@@ -306,7 +364,7 @@ class BBB_Sync_Engine {
 
                 // Duplikat löschen
                 wp_delete_post( $dup_id, true );
-                $total_removed++;
+                ++$total_removed;
 
                 $this->log( "Dedup: '{$dup_title}' (#{$dup_id}) → merged in '{$keep_title}' (#{$keep_id}), PID {$permanent_id}" );
             }
@@ -335,17 +393,17 @@ class BBB_Sync_Engine {
         }
 
         $range_days = (int) get_option( 'bbb_sync_range_days', 365 );
-        $result = $this->api->get_club_matches( $club_id, $range_days );
-        $this->stats['api_calls']++;
+        $result     = $this->api->get_club_matches( $club_id, $range_days );
+        ++$this->stats['api_calls'];
 
         if ( is_wp_error( $result ) ) {
             $this->log( 'Discovery API-Fehler: ' . $result->get_error_message(), 'error' );
             return [ 'error' => $result->get_error_message() ];
         }
 
-        $matches    = $result['matches'] ?? [];
-        $own_teams  = [];
-        $leagues    = [];
+        $matches   = $result['matches'] ?? [];
+        $own_teams = [];
+        $leagues   = [];
 
         foreach ( $matches as $match ) {
             $liga_data = $match['ligaData'] ?? [];
@@ -361,10 +419,14 @@ class BBB_Sync_Engine {
 
             foreach ( [ 'homeTeam', 'guestTeam' ] as $side ) {
                 $team = $match[ $side ] ?? [];
-                if ( (int) ( $team['clubId'] ?? 0 ) !== $club_id ) continue;
+                if ( (int) ( $team['clubId'] ?? 0 ) !== $club_id ) {
+					continue;
+                }
 
                 $pid = (int) ( $team['teamPermanentId'] ?? 0 );
-                if ( ! $pid ) continue;
+                if ( ! $pid ) {
+					continue;
+                }
 
                 if ( ! isset( $own_teams[ $pid ] ) ) {
                     $own_teams[ $pid ] = [
@@ -392,10 +454,14 @@ class BBB_Sync_Engine {
             }
         }
 
-        $this->log( sprintf(
-            'Discovery: %d eigene Teams, %d Ligen, %d Matches',
-            count( $own_teams ), count( $leagues ), count( $matches )
-        ));
+        $this->log(
+            sprintf(
+                'Discovery: %d eigene Teams, %d Ligen, %d Matches',
+                count( $own_teams ),
+                count( $leagues ),
+                count( $matches )
+            )
+        );
 
         return [
             'club'        => $result['club'] ?? [],
@@ -407,10 +473,13 @@ class BBB_Sync_Engine {
 
     public function register_own_teams( array $team_permanent_ids ): void {
         update_option( 'bbb_sync_own_teams', array_map( 'intval', $team_permanent_ids ) );
-        $this->log( sprintf( '%d eigene Teams registriert: %s',
-            count( $team_permanent_ids ),
-            implode( ', ', $team_permanent_ids )
-        ));
+        $this->log(
+            sprintf(
+                '%d eigene Teams registriert: %s',
+                count( $team_permanent_ids ),
+                implode( ', ', $team_permanent_ids )
+            )
+        );
     }
 
     // ═════════════════════════════════════════
@@ -418,7 +487,7 @@ class BBB_Sync_Engine {
     // ═════════════════════════════════════════
 
     public function sync_all(): array {
-        $this->stats = array_fill_keys( array_keys( $this->stats ), 0 );
+        $this->stats               = array_fill_keys( array_keys( $this->stats ), 0 );
         $this->discovered_liga_ids = [];
 
         $own_team_ids = get_option( 'bbb_sync_own_teams', [] );
@@ -449,27 +518,41 @@ class BBB_Sync_Engine {
         }
 
         // v3.5.0: Team-Deduplizierung VOR dem eigentlichen Sync
-        $this->update_progress([
-            'running' => true, 'phase' => 'dedup',
-            'current_label' => 'Team-Deduplizierung...', 'started_at' => time(),
-        ]);
+        $this->update_progress(
+            [
+				'running'       => true,
+				'phase'         => 'dedup',
+				'current_label' => 'Team-Deduplizierung...',
+				'started_at'    => time(),
+			]
+        );
         $this->deduplicate_teams();
 
         $total_teams = count( $own_team_ids );
         $this->log( sprintf( 'Starte Sync für %d eigene Teams...', $total_teams ) );
 
-        $this->update_progress([
-            'running' => true, 'phase' => 'teams', 'current_team' => 0,
-            'total_teams' => $total_teams, 'current_label' => 'Initialisiere...',
-            'matches_total' => 0, 'matches_done' => 0,
-        ]);
+        $this->update_progress(
+            [
+				'running'       => true,
+				'phase'         => 'teams',
+				'current_team'  => 0,
+				'total_teams'   => $total_teams,
+				'current_label' => 'Initialisiere...',
+				'matches_total' => 0,
+				'matches_done'  => 0,
+			]
+        );
 
         foreach ( $own_team_ids as $index => $permanent_id ) {
-            $this->update_progress([
-                'running' => true, 'phase' => 'loading', 'current_team' => $index + 1,
-                'total_teams' => $total_teams,
-                'current_label' => "Lade Matches für Team " . ( $index + 1 ) . "/{$total_teams}...",
-            ]);
+            $this->update_progress(
+                [
+					'running'       => true,
+					'phase'         => 'loading',
+					'current_team'  => $index + 1,
+					'total_teams'   => $total_teams,
+					'current_label' => 'Lade Matches für Team ' . ( $index + 1 ) . "/{$total_teams}...",
+				]
+            );
 
             $this->sync_team_matches( (int) $permanent_id, $index, $total_teams );
             $this->api->throttle();
@@ -481,48 +564,69 @@ class BBB_Sync_Engine {
             $this->log( sprintf( 'Starte Liga-Spielplan-Sync für %d Ligen...', $total_ligas ) );
 
             foreach ( $this->discovered_liga_ids as $liga_index => $liga_id ) {
-                $this->update_progress([
-                    'running' => true, 'phase' => 'liga_spielplan',
-                    'current_label' => sprintf( 'Liga-Spielplan %d/%d (Liga #%d)...',
-                        $liga_index + 1, $total_ligas, $liga_id ),
-                ]);
+                $this->update_progress(
+                    [
+						'running'       => true,
+						'phase'         => 'liga_spielplan',
+						'current_label' => sprintf(
+							'Liga-Spielplan %d/%d (Liga #%d)...',
+                            $liga_index + 1,
+							$total_ligas,
+							$liga_id
+                        ),
+					]
+                );
 
                 $this->sync_liga_spielplan( (int) $liga_id );
                 $this->api->throttle();
             }
         }
 
-        $this->log( sprintf(
-            'Sync fertig: %d Ligen (%d Liga-Matches), Teams %d/%d/%d (neu/akt./dedup), Events %d/%d/%d (neu/akt./gel.), Venues %d/%d, Tabellen %d/%d, Players %d/%d, Logos %d, %d API-Calls, %d Fehler',
-            $this->stats['leagues_found'], $this->stats['liga_matches_synced'],
-            $this->stats['teams_created'], $this->stats['teams_updated'], $this->stats['teams_deduped'],
-            $this->stats['events_created'], $this->stats['events_updated'], $this->stats['events_deleted'],
-            $this->stats['venues_created'], $this->stats['venues_updated'],
-            $this->stats['tables_created'], $this->stats['tables_updated'],
-            $this->stats['players_created'], $this->stats['players_updated'],
-            $this->stats['logos_fetched'],
-            $this->stats['api_calls'],
-            $this->stats['errors']
-        ));
+        $this->log(
+            sprintf(
+                'Sync fertig: %d Ligen (%d Liga-Matches), Teams %d/%d/%d (neu/akt./dedup), Events %d/%d/%d (neu/akt./gel.), Venues %d/%d, Tabellen %d/%d, Players %d/%d, Logos %d, %d API-Calls, %d Fehler',
+                $this->stats['leagues_found'],
+                $this->stats['liga_matches_synced'],
+                $this->stats['teams_created'],
+                $this->stats['teams_updated'],
+                $this->stats['teams_deduped'],
+                $this->stats['events_created'],
+                $this->stats['events_updated'],
+                $this->stats['events_deleted'],
+                $this->stats['venues_created'],
+                $this->stats['venues_updated'],
+                $this->stats['tables_created'],
+                $this->stats['tables_updated'],
+                $this->stats['players_created'],
+                $this->stats['players_updated'],
+                $this->stats['logos_fetched'],
+                $this->stats['api_calls'],
+                $this->stats['errors']
+            )
+        );
 
         update_option( 'bbb_sync_last_run', current_time( 'mysql' ) );
         update_option( 'bbb_sync_last_stats', $this->stats );
 
-        $this->update_progress([
-            'running' => false, 'phase' => 'done',
-            'finished_at' => time(), 'stats' => $this->stats,
-        ]);
+        $this->update_progress(
+            [
+				'running'     => false,
+				'phase'       => 'done',
+				'finished_at' => time(),
+				'stats'       => $this->stats,
+			]
+        );
 
         return $this->stats;
     }
 
     private function sync_team_matches( int $team_permanent_id, int $team_index = 0, int $total_teams = 1 ): int {
         $result = $this->api->get_team_matches( $team_permanent_id );
-        $this->stats['api_calls']++;
+        ++$this->stats['api_calls'];
 
         if ( is_wp_error( $result ) ) {
             $this->log( "API-Fehler für Team {$team_permanent_id}: " . $result->get_error_message(), 'error' );
-            $this->stats['errors']++;
+            ++$this->stats['errors'];
             return 0;
         }
 
@@ -532,11 +636,13 @@ class BBB_Sync_Engine {
 
         $this->log( sprintf( '%s: %d Matches geladen', $team_name, count( $matches ) ) );
 
-        if ( empty( $matches ) ) return 0;
+        if ( empty( $matches ) ) {
+			return 0;
+        }
 
         $match_count = count( $matches );
 
-        $leagues = $this->extract_leagues( $matches );
+        $leagues                       = $this->extract_leagues( $matches );
         $this->stats['leagues_found'] += count( $leagues );
 
         // Liga-IDs sammeln für späteren Spielplan-Sync (alle Spiele der Liga)
@@ -551,31 +657,45 @@ class BBB_Sync_Engine {
 
         foreach ( $leagues as $liga_id => $liga_data ) {
             $league_term_map[ $liga_id ] = $this->ensure_sp_league( $liga_data, $liga_id );
-            $season_key = $liga_data['seasonName'] ?? '';
+            $season_key                  = $liga_data['seasonName'] ?? '';
             if ( $season_key && ! isset( $season_term_map[ $season_key ] ) ) {
                 $season_term_map[ $season_key ] = $this->ensure_sp_season( $liga_data );
             }
         }
 
-        $club_id = (int) get_option( 'bbb_sync_club_id', 0 );
+        $club_id     = (int) get_option( 'bbb_sync_club_id', 0 );
         $team_wp_map = $this->sync_teams_from_matches( $matches, $club_id, $team_meta, $league_term_map, $season_term_map );
 
         $api_match_ids = [];
 
         foreach ( $matches as $match_index => $match ) {
             $match_id = (int) ( $match['matchId'] ?? 0 );
-            if ( $match_id ) $api_match_ids[] = $match_id;
+            if ( $match_id ) {
+				$api_match_ids[] = $match_id;
+            }
 
             $home_name = $match['homeTeam']['teamname'] ?? '?';
             $away_name = $match['guestTeam']['teamname'] ?? '?';
-            $this->update_progress([
-                'running' => true, 'phase' => 'syncing',
-                'current_team' => $team_index + 1, 'total_teams' => $total_teams,
-                'current_label' => sprintf( 'Team %d/%d "%s": Match %d/%d (%s vs %s)',
-                    $team_index + 1, $total_teams, $team_name,
-                    $match_index + 1, $match_count, $home_name, $away_name ),
-                'matches_done' => $match_index + 1, 'matches_total' => $match_count,
-            ]);
+            $this->update_progress(
+                [
+					'running'       => true,
+					'phase'         => 'syncing',
+					'current_team'  => $team_index + 1,
+					'total_teams'   => $total_teams,
+					'current_label' => sprintf(
+						'Team %d/%d "%s": Match %d/%d (%s vs %s)',
+						$team_index + 1,
+						$total_teams,
+						$team_name,
+                        $match_index + 1,
+						$match_count,
+						$home_name,
+						$away_name
+                    ),
+					'matches_done'  => $match_index + 1,
+					'matches_total' => $match_count,
+				]
+            );
 
             $this->sync_event( $match, $team_wp_map, $league_term_map, $season_term_map );
         }
@@ -590,7 +710,7 @@ class BBB_Sync_Engine {
 
     private function update_progress( array $progress ): void {
         $progress['last_update'] = time();
-        $existing = get_transient( 'bbb_sync_progress' ) ?: [];
+        $existing                = get_transient( 'bbb_sync_progress' ) ?: [];
         if ( isset( $existing['started_at'] ) && ! isset( $progress['started_at'] ) ) {
             $progress['started_at'] = $existing['started_at'];
         }
@@ -598,7 +718,10 @@ class BBB_Sync_Engine {
     }
 
     public static function get_progress(): array {
-        return get_transient( 'bbb_sync_progress' ) ?: [ 'running' => false, 'phase' => 'idle' ];
+        return get_transient( 'bbb_sync_progress' ) ?: [
+			'running' => false,
+			'phase'   => 'idle',
+		];
     }
 
     // ═════════════════════════════════════════
@@ -606,8 +729,11 @@ class BBB_Sync_Engine {
     // ═════════════════════════════════════════
 
     private function sync_teams_from_matches(
-        array $matches, int $club_id, array $team_meta,
-        array $league_term_map, array $season_term_map
+        array $matches,
+        int $club_id,
+        array $team_meta,
+        array $league_term_map,
+        array $season_term_map
     ): array {
         $teams = [];
 
@@ -632,12 +758,14 @@ class BBB_Sync_Engine {
             $geschlecht = $liga_data['geschlecht'] ?? '';
 
             foreach ( [ 'homeTeam', 'guestTeam' ] as $side ) {
-                $team = $match[ $side ] ?? [];
+                $team         = $match[ $side ] ?? [];
                 $permanent_id = (int) ( $team['teamPermanentId'] ?? 0 );
-                if ( ! $permanent_id ) continue;
+                if ( ! $permanent_id ) {
+					continue;
+                }
 
                 if ( ! isset( $teams[ $permanent_id ] ) ) {
-                    $is_own = ( (int) ( $team['clubId'] ?? 0 ) === $club_id );
+                    $is_own                 = ( (int) ( $team['clubId'] ?? 0 ) === $club_id );
                     $teams[ $permanent_id ] = [
                         'data'       => $team,
                         'is_own'     => $is_own,
@@ -667,22 +795,31 @@ class BBB_Sync_Engine {
         // Debug: Eigene Teams mit extrahiertem AK/Geschlecht loggen
         foreach ( $teams as $pid => $ti ) {
             if ( $ti['is_own'] ) {
-                $this->log( sprintf(
-                    'Team-Meta PID %d "%s": ak_name="%s", geschlecht="%s", ligen=[%s]',
-                    $pid, $ti['data']['teamname'] ?? '?',
-                    $ti['ak_name'], $ti['geschlecht'],
-                    implode( ', ', $ti['liga_ids'] )
-                ));
+                $this->log(
+                    sprintf(
+                        'Team-Meta PID %d "%s": ak_name="%s", geschlecht="%s", ligen=[%s]',
+                        $pid,
+                        $ti['data']['teamname'] ?? '?',
+                        $ti['ak_name'],
+                        $ti['geschlecht'],
+                        implode( ', ', $ti['liga_ids'] )
+                    )
+                );
             }
         }
 
         $wp_map = [];
         foreach ( $teams as $permanent_id => $team_info ) {
             $wp_id = $this->sync_team(
-                $team_info['data'], $team_info['is_own'], $team_info['extra_meta'],
-                $team_info['liga_ids'], $team_info['seasons'],
-                $league_term_map, $season_term_map,
-                $team_info['ak_name'], $team_info['geschlecht']
+                $team_info['data'],
+                $team_info['is_own'],
+                $team_info['extra_meta'],
+                $team_info['liga_ids'],
+                $team_info['seasons'],
+                $league_term_map,
+                $season_term_map,
+                $team_info['ak_name'],
+                $team_info['geschlecht']
             );
             if ( $wp_id ) {
                 $wp_map[ $permanent_id ] = $wp_id;
@@ -693,10 +830,15 @@ class BBB_Sync_Engine {
     }
 
     private function sync_team(
-        array $team_data, bool $is_own, array $extra_meta,
-        array $liga_ids, array $seasons,
-        array $league_term_map, array $season_term_map,
-        string $ak_name = '', string $geschlecht = ''
+        array $team_data,
+        bool $is_own,
+        array $extra_meta,
+        array $liga_ids,
+        array $seasons,
+        array $league_term_map,
+        array $season_term_map,
+        string $ak_name = '',
+        string $geschlecht = ''
     ): int|false {
         $permanent_id   = (int) ( $team_data['teamPermanentId'] ?? 0 );
         $season_team_id = (int) ( $team_data['seasonTeamId'] ?? 0 );
@@ -704,7 +846,9 @@ class BBB_Sync_Engine {
         $club_id        = (int) ( $team_data['clubId'] ?? 0 );
         $short_name     = $team_data['teamnameSmall'] ?? null;
 
-        if ( ! $permanent_id || ! $team_name ) return false;
+        if ( ! $permanent_id || ! $team_name ) {
+			return false;
+        }
 
         // v3.5.2: Team-Name mit AK + Geschlecht anreichern (alle Teams, außer Senioren)
         $display_name = $team_name;
@@ -742,18 +886,23 @@ class BBB_Sync_Engine {
             $wp_id = $existing_id;
             // Nur bei Adoption (noch kein _bbb_team_permanent_id) Titel setzen
             if ( ! get_post_meta( $existing_id, '_bbb_team_permanent_id', true ) ) {
-                wp_update_post( [ 'ID' => $existing_id, 'post_title' => $display_name ] );
+                wp_update_post(
+                    [
+						'ID'         => $existing_id,
+						'post_title' => $display_name,
+					]
+                );
             }
-            $this->stats['teams_updated']++;
+            ++$this->stats['teams_updated'];
         } else {
             // ═══ CREATE: Alle Felder setzen ═══
             $post_data['post_author'] = $sync_uid;
-            $wp_id = wp_insert_post( $post_data );
+            $wp_id                    = wp_insert_post( $post_data );
             if ( is_wp_error( $wp_id ) || ! $wp_id ) {
-                $this->stats['errors']++;
+                ++$this->stats['errors'];
                 return false;
             }
-            $this->stats['teams_created']++;
+            ++$this->stats['teams_created'];
         }
 
         // BBB-interne Meta (Primary Keys + Zuordnung – immer aktualisieren)
@@ -778,8 +927,12 @@ class BBB_Sync_Engine {
             $this->set_meta_if_not_null( $wp_id, '_bbb_team_number', $extra_meta['teamNumber'] ?? null );
         }
 
-        if ( $ak_name ) $this->set_meta_if_empty( $wp_id, '_bbb_ak_name', $ak_name );
-        if ( $geschlecht ) $this->set_meta_if_empty( $wp_id, '_bbb_geschlecht', $geschlecht );
+        if ( $ak_name ) {
+			$this->set_meta_if_empty( $wp_id, '_bbb_ak_name', $ak_name );
+        }
+        if ( $geschlecht ) {
+			$this->set_meta_if_empty( $wp_id, '_bbb_geschlecht', $geschlecht );
+        }
         $this->set_meta_if_empty( $wp_id, '_bbb_original_teamname', $team_name );
 
         // sp_url: Nicht setzen – BBB hat keine öffentlichen Team-URLs.
@@ -788,15 +941,21 @@ class BBB_Sync_Engine {
         // Logo
         if ( $club_id ) {
             $logo_id = $this->logo_handler->maybe_sync_logo( $wp_id, $permanent_id, $club_id );
-            if ( $logo_id ) $this->stats['logos_fetched']++;
+            if ( $logo_id ) {
+				++$this->stats['logos_fetched'];
+            }
         }
 
         // Taxonomies
         $league_terms = array_filter( array_map( fn( $lid ) => $league_term_map[ $lid ] ?? null, $liga_ids ) );
-        if ( $league_terms ) wp_set_object_terms( $wp_id, $league_terms, 'sp_league', true );
+        if ( $league_terms ) {
+			wp_set_object_terms( $wp_id, $league_terms, 'sp_league', true );
+        }
 
         $season_terms = array_filter( array_map( fn( $s ) => $season_term_map[ $s ] ?? null, $seasons ) );
-        if ( $season_terms ) wp_set_object_terms( $wp_id, $season_terms, 'sp_season', true );
+        if ( $season_terms ) {
+			wp_set_object_terms( $wp_id, $season_terms, 'sp_season', true );
+        }
 
         return $wp_id;
     }
@@ -806,11 +965,15 @@ class BBB_Sync_Engine {
     // ═════════════════════════════════════════
 
     private function sync_event(
-        array $match, array $team_wp_map,
-        array $league_term_map, array $season_term_map
+        array $match, // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames -- parameter name reflects BBB API data structure
+        array $team_wp_map,
+        array $league_term_map,
+        array $season_term_map
     ): void {
         $match_id = (int) ( $match['matchId'] ?? 0 );
-        if ( ! $match_id ) return;
+        if ( ! $match_id ) {
+			return;
+        }
 
         $home_permanent_id = (int) ( $match['homeTeam']['teamPermanentId'] ?? 0 );
         $away_permanent_id = (int) ( $match['guestTeam']['teamPermanentId'] ?? 0 );
@@ -823,16 +986,21 @@ class BBB_Sync_Engine {
             $home_name = $match['homeTeam']['teamname'] ?? '?';
             $away_name = $match['guestTeam']['teamname'] ?? '?';
             $combined  = mb_strtolower( $home_name . $away_name );
-            $reason    = match(true) {
+            $reason    = match ( true ) {
                 str_contains( $combined, 'freilos' ) => 'Freilos (Bye)',
                 str_contains( $combined, '?' )       => 'Turnier-Platzhalter (Gegner steht noch nicht fest)',
                 default                              => 'Team ohne permanentId',
             };
-            $this->log( sprintf(
-                'Event übersprungen: Match #%d (%s vs %s) – %s',
-                $match_id, $home_name, $away_name, $reason
-            ));
-            $this->stats['events_skipped']++;
+            $this->log(
+                sprintf(
+                    'Event übersprungen: Match #%d (%s vs %s) – %s',
+                    $match_id,
+                    $home_name,
+                    $away_name,
+                    $reason
+                )
+            );
+            ++$this->stats['events_skipped'];
             return;
         }
 
@@ -842,13 +1010,20 @@ class BBB_Sync_Engine {
         if ( ! $home_wp_id || ! $away_wp_id ) {
             $home_name = $match['homeTeam']['teamname'] ?? '?';
             $away_name = $match['guestTeam']['teamname'] ?? '?';
-            $this->log( sprintf(
-                'Event-Fehler: Team-Mapping fehlt für Match #%d (%s vs %s) – home_pid=%d→%s, away_pid=%d→%s',
-                $match_id, $home_name, $away_name,
-                $home_permanent_id, $home_wp_id ? "#{$home_wp_id}" : 'MISSING',
-                $away_permanent_id, $away_wp_id ? "#{$away_wp_id}" : 'MISSING'
-            ), 'error' );
-            $this->stats['errors']++;
+            $this->log(
+                sprintf(
+                    'Event-Fehler: Team-Mapping fehlt für Match #%d (%s vs %s) – home_pid=%d→%s, away_pid=%d→%s',
+                    $match_id,
+                    $home_name,
+                    $away_name,
+                    $home_permanent_id,
+                    $home_wp_id ? "#{$home_wp_id}" : 'MISSING',
+                    $away_permanent_id,
+                    $away_wp_id ? "#{$away_wp_id}" : 'MISSING'
+                ),
+                'error'
+            );
+            ++$this->stats['errors'];
             return;
         }
 
@@ -883,12 +1058,12 @@ class BBB_Sync_Engine {
             }
         }
 
-        $sync_uid   = $this->get_sync_user_id();
-        $is_update  = (bool) $existing_id;
+        $sync_uid  = $this->get_sync_user_id();
+        $is_update = (bool) $existing_id;
 
         if ( $is_update ) {
             // ═══ UPDATE: Nur sichere Felder ändern, manuell Eingetragenes schützen ═══
-            $wp_id = $existing_id;
+            $wp_id        = $existing_id;
             $current_post = get_post( $existing_id );
 
             $update_data = [ 'ID' => $existing_id ];
@@ -913,7 +1088,7 @@ class BBB_Sync_Engine {
 
             // post_content (Spielbericht) NIE anfassen
             wp_update_post( $update_data );
-            $this->stats['events_updated']++;
+            ++$this->stats['events_updated'];
 
         } else {
             // ═══ CREATE: Alle Felder setzen ═══
@@ -924,12 +1099,12 @@ class BBB_Sync_Engine {
                 'post_date'   => $datetime,
                 'post_author' => $sync_uid,
             ];
-            $wp_id = wp_insert_post( $post_data );
+            $wp_id     = wp_insert_post( $post_data );
             if ( is_wp_error( $wp_id ) || ! $wp_id ) {
-                $this->stats['errors']++;
+                ++$this->stats['errors'];
                 return;
             }
-            $this->stats['events_created']++;
+            ++$this->stats['events_created'];
         }
 
         // BBB meta (_bbb_match_id immer setzen = Primary Key)
@@ -955,17 +1130,23 @@ class BBB_Sync_Engine {
         //
         // Konfigurierte Slugs: z.B. ['t','pts'] → Gesamtergebnis in beide Spalten schreiben.
         // Basketball-typisch: 't' (Total für Teaser) + 'pts' (Event-Editor).
-        $rk = $this->get_main_result_slug() ?: 'pts'; // Primär-Slug (für sp_main_result)
+        $rk        = $this->get_main_result_slug() ?: 'pts'; // Primär-Slug (für sp_main_result)
         $all_slugs = $this->get_result_slugs();        // Alle konfigurierten Slugs
-        if ( empty( $all_slugs ) ) $all_slugs = [ $rk ]; // Fallback: nur Primär-Slug
+        if ( empty( $all_slugs ) ) {
+			$all_slugs = [ $rk ]; // Fallback: nur Primär-Slug
+        }
 
-        $existing_results = get_post_meta( $wp_id, 'sp_results', true );
+        $existing_results     = get_post_meta( $wp_id, 'sp_results', true );
         $has_existing_results = false;
         if ( ! empty( $existing_results ) && is_array( $existing_results ) ) {
             foreach ( $existing_results as $team_id => $data ) {
-                if ( ! is_array( $data ) ) continue;
+                if ( ! is_array( $data ) ) {
+					continue;
+                }
                 foreach ( $data as $k => $v ) {
-                    if ( $k === 'outcome' ) continue;
+                    if ( $k === 'outcome' ) {
+						continue;
+                    }
                     if ( $v !== '' && $v !== '0' && $v !== null ) {
                         $has_existing_results = true;
                         break 2;
@@ -977,7 +1158,7 @@ class BBB_Sync_Engine {
         if ( $result_str !== null && str_contains( (string) $result_str, ':' ) ) {
             // API hat Ergebnis → nur schreiben wenn noch kein Ergebnis vorhanden
             if ( ! $has_existing_results ) {
-                $parts = explode( ':', $result_str );
+                $parts      = explode( ':', $result_str );
                 $home_score = (int) $parts[0];
                 $away_score = (int) $parts[1];
 
@@ -989,22 +1170,30 @@ class BBB_Sync_Engine {
                     $away_data[ $slug ] = (string) $away_score;
                 }
 
-                $results = [ $home_wp_id => $home_data, $away_wp_id => $away_data ];
+                $results = [
+					$home_wp_id => $home_data,
+					$away_wp_id => $away_data,
+				];
                 update_post_meta( $wp_id, 'sp_results', $results );
                 update_post_meta( $wp_id, 'sp_status', 'results' );
                 update_post_meta( $wp_id, 'sp_main_result', $rk );
             }
-        } else {
+        } elseif ( ! $is_update && empty( $existing_results ) ) {
             // Kein API-Ergebnis → Leere Struktur nur bei Neuanlage
-            if ( ! $is_update && empty( $existing_results ) ) {
-                $home_data = [ 'outcome' => [] ];
-                $away_data = [ 'outcome' => [] ];
-                foreach ( $all_slugs as $slug ) {
-                    $home_data[ $slug ] = '';
-                    $away_data[ $slug ] = '';
-                }
-                update_post_meta( $wp_id, 'sp_results', [ $home_wp_id => $home_data, $away_wp_id => $away_data ] );
+            $home_data = [ 'outcome' => [] ];
+            $away_data = [ 'outcome' => [] ];
+            foreach ( $all_slugs as $slug ) {
+                $home_data[ $slug ] = '';
+                $away_data[ $slug ] = '';
             }
+            update_post_meta(
+                $wp_id,
+                'sp_results',
+                [
+                    $home_wp_id => $home_data,
+                    $away_wp_id => $away_data,
+                ]
+            );
         }
 
         // sp_main_result IMMER setzen (auch bei Update, falls fehlend)
@@ -1015,14 +1204,18 @@ class BBB_Sync_Engine {
 
         // Taxonomies
         $league_term = $league_term_map[ $liga_id ] ?? null;
-        if ( $league_term ) wp_set_object_terms( $wp_id, $league_term, 'sp_league', false );
+        if ( $league_term ) {
+			wp_set_object_terms( $wp_id, $league_term, 'sp_league', false );
+        }
 
         $season_term = $season_term_map[ $season_name ] ?? null;
-        if ( $season_term ) wp_set_object_terms( $wp_id, $season_term, 'sp_season', false );
+        if ( $season_term ) {
+			wp_set_object_terms( $wp_id, $season_term, 'sp_season', false );
+        }
 
         // Player-Sync + Venue
         $players_enabled = (bool) get_option( 'bbb_sync_players_enabled', false );
-        $boxscore_data = null;
+        $boxscore_data   = null;
 
         if ( $result_str !== null && $players_enabled ) {
             // Nur eigene Spieler? → Eigene Team-IDs als Filter übergeben
@@ -1030,11 +1223,11 @@ class BBB_Sync_Engine {
             if ( (bool) get_option( 'bbb_sync_players_own_only', true ) ) {
                 $own_pids = array_map( 'intval', get_option( 'bbb_sync_own_teams', [] ) );
             }
-            $player_stats = $this->player_sync->sync_from_match( $match_id, $wp_id, $team_wp_map, $own_pids );
+            $player_stats                    = $this->player_sync->sync_from_match( $match_id, $wp_id, $team_wp_map, $own_pids );
             $this->stats['players_created'] += $player_stats['created'];
             $this->stats['players_updated'] += $player_stats['updated'];
             if ( $player_stats['created'] + $player_stats['updated'] > 0 ) {
-                $this->stats['api_calls']++;
+                ++$this->stats['api_calls'];
             }
             $boxscore_data = $player_stats['boxscore_data'] ?? null;
 
@@ -1044,11 +1237,17 @@ class BBB_Sync_Engine {
             if ( $season_term_id ) {
                 foreach ( [ $home_permanent_id, $away_permanent_id ] as $pid ) {
                     $t_wp_id = $team_wp_map[ $pid ] ?? null;
-                    if ( ! $t_wp_id ) continue;
-                    if ( get_post_meta( $t_wp_id, '_bbb_is_own_team', true ) !== '1' ) continue;
+                    if ( ! $t_wp_id ) {
+						continue;
+                    }
+                    if ( get_post_meta( $t_wp_id, '_bbb_is_own_team', true ) !== '1' ) {
+						continue;
+                    }
 
                     $list_id = $this->player_sync->ensure_player_list(
-                        $t_wp_id, $season_term_id, $league_term_id ?: 0
+                        $t_wp_id,
+                        $season_term_id,
+                        $league_term_id ?: 0
                     );
                     if ( $list_id && $boxscore_data ) {
                         $mb = $boxscore_data['matchBoxscore'] ?? null;
@@ -1056,8 +1255,8 @@ class BBB_Sync_Engine {
                             $side_key = ( $pid === $home_permanent_id ) ? 'homePlayerStats' : 'guestPlayerStats';
                             foreach ( $mb[ $side_key ] ?? [] as $ps ) {
                                 $player_wrapper = $ps['player'] ?? $ps;
-                                $person = $player_wrapper['person'] ?? [];
-                                $person_id = (int) ( $person['id'] ?? 0 );
+                                $person         = $player_wrapper['person'] ?? [];
+                                $person_id      = (int) ( $person['id'] ?? 0 );
                                 if ( $person_id ) {
                                     $pw_id = $this->find_sp_player_by_person_id( $person_id );
                                     if ( $pw_id ) {
@@ -1080,30 +1279,47 @@ class BBB_Sync_Engine {
     // ═════════════════════════════════════════
 
     private function reconcile_events( array $api_match_ids, int $team_permanent_id, array $team_wp_map ): void {
-        if ( empty( $api_match_ids ) ) return;
+        if ( empty( $api_match_ids ) ) {
+			return;
+        }
 
         $team_wp_id = $team_wp_map[ $team_permanent_id ] ?? null;
-        if ( ! $team_wp_id ) return;
+        if ( ! $team_wp_id ) {
+			return;
+        }
 
-        $query = new WP_Query([
-            'post_type' => 'sp_event', 'post_status' => 'any', 'posts_per_page' => -1,
-            'meta_query' => [
-                'relation' => 'AND',
-                [ 'key' => '_bbb_match_id', 'compare' => 'EXISTS' ],
-                [ 'key' => 'sp_team', 'value' => $team_wp_id ],
-            ],
-            'fields' => 'ids', 'no_found_rows' => true,
-        ]);
+        $query = new WP_Query(
+            [
+				'post_type'      => 'sp_event',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'meta_query'     => [
+					'relation' => 'AND',
+					[
+						'key'     => '_bbb_match_id',
+						'compare' => 'EXISTS',
+					],
+					[
+						'key'   => 'sp_team',
+						'value' => $team_wp_id,
+					],
+				],
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			]
+        );
 
         $orphaned = 0;
         foreach ( $query->posts as $sp_event_id ) {
             $sp_match_id = (int) get_post_meta( $sp_event_id, '_bbb_match_id', true );
             if ( $sp_match_id && ! in_array( $sp_match_id, $api_match_ids, true ) ) {
                 wp_delete_post( $sp_event_id, true );
-                $orphaned++;
+                ++$orphaned;
             }
         }
-        if ( $orphaned > 0 ) $this->stats['events_deleted'] += $orphaned;
+        if ( $orphaned > 0 ) {
+			$this->stats['events_deleted'] += $orphaned;
+        }
     }
 
     // ═════════════════════════════════════════
@@ -1121,11 +1337,11 @@ class BBB_Sync_Engine {
      */
     private function sync_liga_spielplan( int $liga_id ): void {
         $result = $this->api->get_liga_spielplan( $liga_id );
-        $this->stats['api_calls']++;
+        ++$this->stats['api_calls'];
 
         if ( is_wp_error( $result ) ) {
             $this->log( "Liga-Spielplan API-Fehler für Liga #{$liga_id}: " . $result->get_error_message(), 'error' );
-            $this->stats['errors']++;
+            ++$this->stats['errors'];
             return;
         }
 
@@ -1151,14 +1367,18 @@ class BBB_Sync_Engine {
         foreach ( $matches as $m ) {
             $mid = (int) ( $m['matchId'] ?? 0 );
             if ( $mid && ! $this->find_sp_event( $mid ) ) {
-                $new_matches++;
+                ++$new_matches;
             }
         }
 
-        $this->log( sprintf(
-            'Liga-Spielplan \'%s\': %d Matches gesamt, %d neu (ohne eigene Beteiligung)',
-            $liga_name, count( $matches ), $new_matches
-        ));
+        $this->log(
+            sprintf(
+                'Liga-Spielplan \'%s\': %d Matches gesamt, %d neu (ohne eigene Beteiligung)',
+                $liga_name,
+                count( $matches ),
+                $new_matches
+            )
+        );
 
         // Teams + Leagues/Seasons aus Spielplan-Matches erstellen
         $club_id = (int) get_option( 'bbb_sync_club_id', 0 );
@@ -1167,7 +1387,7 @@ class BBB_Sync_Engine {
         $season_term_map = [];
 
         $league_term_map[ $liga_id ] = $this->ensure_sp_league( $liga_data, $liga_id );
-        $season_name = $liga_data['seasonName'] ?? '';
+        $season_name                 = $liga_data['seasonName'] ?? '';
         if ( $season_name ) {
             $season_term_map[ $season_name ] = $this->ensure_sp_season( $liga_data );
         }
@@ -1179,7 +1399,7 @@ class BBB_Sync_Engine {
         $synced = 0;
         foreach ( $matches as $match ) {
             $this->sync_event( $match, $team_wp_map, $league_term_map, $season_term_map );
-            $synced++;
+            ++$synced;
         }
 
         $this->stats['liga_matches_synced'] += $synced;
@@ -1187,27 +1407,32 @@ class BBB_Sync_Engine {
         // sp_table nur für Ligen mit Tabelle (nicht für Pokal/KO-Wettbewerbe)
         // WICHTIG: Nur explizites false = Pokal! null = unbekannt → als Liga behandeln.
         // Club-Endpoint liefert oft null, Spielplan-Endpoint ist zuverlässiger.
-        $has_table = ( $liga_data['tableExists'] ?? null ) !== false;
+        $has_table      = ( $liga_data['tableExists'] ?? null ) !== false;
         $league_term_id = $league_term_map[ $liga_id ] ?? null;
         $season_term_id = $season_term_map[ $season_name ] ?? null;
 
         $raw_table_exists = $liga_data['tableExists'] ?? null;
-        $this->log( sprintf(
-            'Liga \'%s\' (#%d): tableExists=%s → %s',
-            $liga_name, $liga_id,
-            var_export( $raw_table_exists, true ),
-            $has_table ? 'Liga (sp_table)' : 'Pokal (Bracket)'
-        ));
+        $this->log(
+            sprintf(
+                'Liga \'%s\' (#%d): tableExists=%s → %s',
+                $liga_name,
+                $liga_id,
+                $raw_table_exists ? 'true' : 'false',
+                $has_table ? 'Liga (sp_table)' : 'Pokal (Bracket)'
+            )
+        );
 
         if ( $has_table && $league_term_id ) {
             $this->ensure_league_table( $liga_id, $liga_name, $league_term_id, $season_term_id, $team_wp_map );
         } elseif ( ! $has_table ) {
             $sk_name = $liga_data['skName'] ?? '';
-            $this->log( sprintf(
-                'Keine Tabelle für \'%s\' (tableExists=false%s) – Pokal/KO-Wettbewerb → Bracket-Cache invalidiert',
-                $liga_name,
-                $sk_name ? ", Typ: {$sk_name}" : ''
-            ));
+            $this->log(
+                sprintf(
+                    'Keine Tabelle für \'%s\' (tableExists=false%s) – Pokal/KO-Wettbewerb → Bracket-Cache invalidiert',
+                    $liga_name,
+                    $sk_name ? ", Typ: {$sk_name}" : ''
+                )
+            );
             // Bracket-Cache invalidieren damit Shortcode aktuelle Daten zeigt
             BBB_Tournament_Bracket::invalidate_cache( $liga_id );
         }
@@ -1230,8 +1455,10 @@ class BBB_Sync_Engine {
      * @param array    $team_wp_map    permanentId => WP Post ID
      */
     private function ensure_league_table(
-        int $liga_id, string $liga_name,
-        int $league_term_id, ?int $season_term_id,
+        int $liga_id,
+        string $liga_name,
+        int $league_term_id,
+        ?int $season_term_id,
         array $team_wp_map
     ): void {
         $existing_id = $this->find_sp_table_by_liga_id( $liga_id );
@@ -1246,16 +1473,16 @@ class BBB_Sync_Engine {
         if ( $existing_id ) {
             // UPDATE: Titel NIE überschreiben
             $wp_id = $existing_id;
-            $this->stats['tables_updated']++;
+            ++$this->stats['tables_updated'];
         } else {
             $post_data['post_author'] = $sync_uid;
-            $wp_id = wp_insert_post( $post_data );
+            $wp_id                    = wp_insert_post( $post_data );
             if ( is_wp_error( $wp_id ) || ! $wp_id ) {
                 $this->log( "Tabelle für '{$liga_name}' konnte nicht erstellt werden", 'error' );
-                $this->stats['errors']++;
+                ++$this->stats['errors'];
                 return;
             }
-            $this->stats['tables_created']++;
+            ++$this->stats['tables_created'];
             $this->log( "Tabelle erstellt: '{$liga_name}' (SP #{$wp_id})" );
         }
 
@@ -1284,14 +1511,16 @@ class BBB_Sync_Engine {
      */
     private function find_sp_table_by_liga_id( int $liga_id ): int|false {
         global $wpdb;
-        $id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT p.ID FROM {$wpdb->posts} p
+        $id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->posts} p
              INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
              WHERE p.post_type = 'sp_table' AND p.post_status IN ('publish','draft')
              AND pm.meta_key = '_bbb_liga_id' AND pm.meta_value = %d
              LIMIT 1",
-            $liga_id
-        ) );
+                $liga_id
+            )
+        );
         return $id ? (int) $id : false;
     }
 
@@ -1308,18 +1537,20 @@ class BBB_Sync_Engine {
      *
      * Boxscore enthält KEIN spielfeld → immer matchInfo-Endpoint als Venue-Quelle.
      */
-    private function maybe_sync_venue( array $match, int $event_wp_id, ?array $boxscore_data = null ): void {
+    private function maybe_sync_venue( array $match, int $event_wp_id, ?array $boxscore_data = null ): void { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames -- parameter name reflects BBB API data structure
         $match_id   = (int) ( $match['matchId'] ?? 0 );
         $result_str = $match['result'] ?? null;
 
         // Auch Venue für zukünftige Spiele setzen (aus match-Daten)
-        if ( ! $match_id ) return;
+        if ( ! $match_id ) {
+			return;
+        }
 
         // Bereits Venue mit Adresse zugewiesen?
         $existing_venues = wp_get_object_terms( $event_wp_id, 'sp_venue', [ 'fields' => 'ids' ] );
         if ( ! empty( $existing_venues ) && ! is_wp_error( $existing_venues ) ) {
             // SportsPress speichert Venue-Meta als Option "taxonomy_{term_id}"
-            $venue_option = get_option( "taxonomy_{$existing_venues[0]}", [] );
+            $venue_option     = get_option( "taxonomy_{$existing_venues[0]}", [] );
             $existing_address = $venue_option['sp_address'] ?? '';
             if ( ! empty( $existing_address ) ) {
                 return; // Venue + Adresse vorhanden → fertig
@@ -1336,13 +1567,15 @@ class BBB_Sync_Engine {
         // Prio 2: matchInfo-Endpoint (immer als Fallback)
         if ( ! $spielfeld || empty( $spielfeld['id'] ) ) {
             // Nur für beendete Spiele matchInfo laden (API-Call sparen)
-            if ( $result_str === null ) return;
+            if ( $result_str === null ) {
+				return;
+            }
 
             $match_info = $this->api->get_match_info( $match_id );
-            $this->stats['api_calls']++;
+            ++$this->stats['api_calls'];
 
             if ( is_wp_error( $match_info ) ) {
-                $this->stats['errors']++;
+                ++$this->stats['errors'];
                 return;
             }
             $this->api->throttle();
@@ -1364,7 +1597,9 @@ class BBB_Sync_Engine {
             }
         }
 
-        if ( ! $spielfeld || empty( $spielfeld['id'] ) ) return;
+        if ( ! $spielfeld || empty( $spielfeld['id'] ) ) {
+			return;
+        }
 
         $spielfeld_id = (int) $spielfeld['id'];
         $venue_name   = $spielfeld['bezeichnung'] ?? "Spielfeld {$spielfeld_id}";
@@ -1375,12 +1610,14 @@ class BBB_Sync_Engine {
         if ( ! $venue_term_id ) {
             $result = wp_insert_term( $venue_name, 'sp_venue' );
             if ( is_wp_error( $result ) ) {
-                $existing = get_term_by( 'name', $venue_name, 'sp_venue' );
+                $existing      = get_term_by( 'name', $venue_name, 'sp_venue' );
                 $venue_term_id = $existing ? $existing->term_id : null;
-                if ( ! $venue_term_id ) return;
+                if ( ! $venue_term_id ) {
+					return;
+                }
             } else {
                 $venue_term_id = $result['term_id'];
-                $this->stats['venues_created']++;
+                ++$this->stats['venues_created'];
             }
             update_term_meta( $venue_term_id, '_bbb_spielfeld_id', $spielfeld_id );
             if ( $address ) {
@@ -1393,7 +1630,7 @@ class BBB_Sync_Engine {
             // Adresse ggf. nachträglich ergänzen
             if ( $address ) {
                 $venue_option = get_option( "taxonomy_{$venue_term_id}", [] );
-                $old_addr = $venue_option['sp_address'] ?? '';
+                $old_addr     = $venue_option['sp_address'] ?? '';
                 if ( ! $old_addr || $old_addr !== $address ) {
                     $this->set_venue_meta( $venue_term_id, 'sp_address', $address );
                     $this->maybe_geocode_venue( $venue_term_id, $spielfeld );
@@ -1405,7 +1642,7 @@ class BBB_Sync_Engine {
                     $this->maybe_geocode_venue( $venue_term_id, $spielfeld );
                 }
             }
-            $this->stats['venues_updated']++;
+            ++$this->stats['venues_updated'];
         }
 
         // Venue zum Event zuweisen
@@ -1420,8 +1657,10 @@ class BBB_Sync_Engine {
      */
     private function set_venue_meta( int $term_id, string $key, string $value ): void {
         $option_key = "taxonomy_{$term_id}";
-        $meta = get_option( $option_key, [] );
-        if ( ! is_array( $meta ) ) $meta = [];
+        $meta       = get_option( $option_key, [] );
+        if ( ! is_array( $meta ) ) {
+			$meta = [];
+        }
         $meta[ $key ] = $value;
         update_option( $option_key, $meta );
     }
@@ -1443,10 +1682,14 @@ class BBB_Sync_Engine {
         $plz     = $spielfeld['plz'] ?? '';
         $ort     = $spielfeld['ort'] ?? '';
 
-        if ( ! $strasse && ! $plz && ! $ort ) return;
+        if ( ! $strasse && ! $plz && ! $ort ) {
+			return;
+        }
 
         $coords = $this->geocode_address( $strasse, $plz, $ort );
-        if ( ! $coords ) return;
+        if ( ! $coords ) {
+			return;
+        }
 
         $this->set_venue_meta( $venue_term_id, 'sp_latitude', $coords['lat'] );
         $this->set_venue_meta( $venue_term_id, 'sp_longitude', $coords['lon'] );
@@ -1468,17 +1711,26 @@ class BBB_Sync_Engine {
             'limit'        => 1,
         ];
 
-        if ( $strasse ) $query_params['street']     = $strasse;
-        if ( $plz )     $query_params['postalcode'] = $plz;
-        if ( $ort )     $query_params['city']       = $ort;
+        if ( $strasse ) {
+			$query_params['street'] = $strasse;
+        }
+        if ( $plz ) {
+			$query_params['postalcode'] = $plz;
+        }
+        if ( $ort ) {
+			$query_params['city'] = $ort;
+        }
 
         $url = 'https://nominatim.openstreetmap.org/search?' . http_build_query( $query_params );
 
-        $response = wp_remote_get( $url, [
-            'timeout'    => 10,
-            'user-agent' => 'BBB-SportsPress-Sync/' . BBB_SYNC_VERSION . ' (WordPress Plugin; +https://github.com)',
-            'headers'    => [ 'Accept' => 'application/json' ],
-        ] );
+        $response = wp_remote_get(
+            $url,
+            [
+				'timeout'    => 10,
+				'user-agent' => 'BBB-SportsPress-Sync/' . BBB_SYNC_VERSION . ' (WordPress Plugin; +https://github.com)',
+				'headers'    => [ 'Accept' => 'application/json' ],
+			]
+        );
 
         // Rate Limit respektieren
         $this->api->throttle();
@@ -1512,18 +1764,25 @@ class BBB_Sync_Engine {
     }
 
     private function build_venue_address( array $spielfeld ): string {
-        $parts = array_filter([
-            $spielfeld['strasse'] ?? '',
-            trim( ( $spielfeld['plz'] ?? '' ) . ' ' . ( $spielfeld['ort'] ?? '' ) ),
-        ]);
+        $parts = array_filter(
+            [
+				$spielfeld['strasse'] ?? '',
+				trim( ( $spielfeld['plz'] ?? '' ) . ' ' . ( $spielfeld['ort'] ?? '' ) ),
+			]
+        );
         return $parts ? implode( ', ', $parts ) : '';
     }
 
     private function find_venue_by_spielfeld_id( int $spielfeld_id ): int|false {
-        $terms = get_terms([
-            'taxonomy' => 'sp_venue', 'meta_key' => '_bbb_spielfeld_id',
-            'meta_value' => $spielfeld_id, 'hide_empty' => false, 'number' => 1,
-        ]);
+        $terms = get_terms(
+            [
+				'taxonomy'   => 'sp_venue',
+				'meta_key'   => '_bbb_spielfeld_id',
+				'meta_value' => $spielfeld_id,
+				'hide_empty' => false,
+				'number'     => 1,
+			]
+        );
         return ( ! is_wp_error( $terms ) && ! empty( $terms ) ) ? $terms[0]->term_id : false;
     }
 
@@ -1542,27 +1801,37 @@ class BBB_Sync_Engine {
      * SportsPress liest Venue-Meta aus get_option("taxonomy_{term_id}"), nicht aus term_meta.
      */
     private function migrate_venue_meta_to_options(): void {
-        $terms = get_terms([
-            'taxonomy' => 'sp_venue', 'hide_empty' => false,
-            'meta_key' => '_bbb_spielfeld_id', 'meta_compare' => 'EXISTS',
-        ]);
-        if ( is_wp_error( $terms ) ) return;
+        $terms = get_terms(
+            [
+				'taxonomy'     => 'sp_venue',
+				'hide_empty'   => false,
+				'meta_key'     => '_bbb_spielfeld_id',
+				'meta_compare' => 'EXISTS',
+			]
+        );
+        if ( is_wp_error( $terms ) ) {
+			return;
+        }
 
         $migrated = 0;
         foreach ( $terms as $term ) {
             // Alte Adresse aus term_meta lesen
             $addr_from_termmeta = get_term_meta( $term->term_id, 'sp_address', true );
-            if ( empty( $addr_from_termmeta ) ) continue;
+            if ( empty( $addr_from_termmeta ) ) {
+				continue;
+            }
 
             // In SportsPress-Format (Option) schreiben
             $option_key = "taxonomy_{$term->term_id}";
-            $meta = get_option( $option_key, [] );
-            if ( ! is_array( $meta ) ) $meta = [];
+            $meta       = get_option( $option_key, [] );
+            if ( ! is_array( $meta ) ) {
+				$meta = [];
+            }
 
             if ( empty( $meta['sp_address'] ) ) {
                 $meta['sp_address'] = $addr_from_termmeta;
                 update_option( $option_key, $meta );
-                $migrated++;
+                ++$migrated;
             }
 
             // Altes term_meta aufräumen
@@ -1581,7 +1850,9 @@ class BBB_Sync_Engine {
     private function migrate_post_authors_to_sync_user(): void {
         global $wpdb;
         $sync_uid = $this->get_sync_user_id();
-        if ( ! $sync_uid ) return;
+        if ( ! $sync_uid ) {
+			return;
+        }
 
         // sp_team + sp_event: Alle mit _bbb_* Meta
         $meta_keys_by_type = [
@@ -1593,14 +1864,19 @@ class BBB_Sync_Engine {
 
         $total = 0;
         foreach ( $meta_keys_by_type as $post_type => $meta_key ) {
-            $updated = $wpdb->query( $wpdb->prepare(
-                "UPDATE {$wpdb->posts} p
+            $updated = $wpdb->query(
+                $wpdb->prepare(
+                    "UPDATE {$wpdb->posts} p
                  INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = %s
                  SET p.post_author = %d
                  WHERE p.post_type = %s AND p.post_author != %d",
-                $meta_key, $sync_uid, $post_type, $sync_uid
-            ) );
-            $total += (int) $updated;
+                    $meta_key,
+                    $sync_uid,
+                    $post_type,
+                    $sync_uid
+                )
+            );
+            $total  += (int) $updated;
         }
 
         if ( $total > 0 ) {
@@ -1624,20 +1900,26 @@ class BBB_Sync_Engine {
      */
     private function reset_venue_addresses(): void {
         // Lösche alle leeren sp_address Meta (erzwingt Neuladen)
-        $terms = get_terms([
-            'taxonomy' => 'sp_venue', 'hide_empty' => false,
-            'meta_key' => '_bbb_spielfeld_id', 'meta_compare' => 'EXISTS',
-        ]);
-        if ( is_wp_error( $terms ) ) return;
+        $terms = get_terms(
+            [
+				'taxonomy'     => 'sp_venue',
+				'hide_empty'   => false,
+				'meta_key'     => '_bbb_spielfeld_id',
+				'meta_compare' => 'EXISTS',
+			]
+        );
+        if ( is_wp_error( $terms ) ) {
+			return;
+        }
 
         $count = 0;
         foreach ( $terms as $term ) {
             $venue_option = get_option( "taxonomy_{$term->term_id}", [] );
-            $addr = $venue_option['sp_address'] ?? '';
+            $addr         = $venue_option['sp_address'] ?? '';
             if ( empty( $addr ) ) {
                 // Venue von allen Events entfernen → erzwingt Re-Zuweisung
                 // (Venue bleibt erhalten, wird beim nächsten Sync mit Adresse aktualisiert)
-                $count++;
+                ++$count;
             }
         }
         if ( $count > 0 ) {
@@ -1650,72 +1932,114 @@ class BBB_Sync_Engine {
     // ═════════════════════════════════════════
 
     private function find_sp_team_by_permanent_id( int $permanent_id ): int|false {
-        if ( ! $permanent_id ) return false;
+        if ( ! $permanent_id ) {
+			return false;
+        }
         // v3.5.0: Direkte DB-Query statt WP_Query (umgeht Object Cache)
         global $wpdb;
-        $id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT p.ID FROM {$wpdb->posts} p
+        $id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->posts} p
              INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
              WHERE p.post_type = 'sp_team' AND p.post_status IN ('publish','draft')
              AND pm.meta_key = '_bbb_team_permanent_id' AND pm.meta_value = %d
              ORDER BY p.ID ASC LIMIT 1",
-            $permanent_id
-        ) );
+                $permanent_id
+            )
+        );
         return $id ? (int) $id : false;
     }
 
     private function find_sp_team_by_name( string $team_name ): int|false {
         $normalized = mb_strtolower( trim( $team_name ) );
-        $query = new WP_Query([
-            'post_type' => 'sp_team', 'post_status' => 'any', 'posts_per_page' => -1,
-            'meta_query' => [[ 'key' => '_bbb_team_permanent_id', 'compare' => 'NOT EXISTS' ]],
-            'fields' => 'ids', 'no_found_rows' => true,
-        ]);
+        $query      = new WP_Query(
+            [
+				'post_type'      => 'sp_team',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'meta_query'     => [
+					[
+						'key'     => '_bbb_team_permanent_id',
+						'compare' => 'NOT EXISTS',
+					],
+				],
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			]
+        );
         foreach ( $query->posts as $post_id ) {
             $sp_name = mb_strtolower( trim( get_the_title( $post_id ) ) );
-            if ( $sp_name === $normalized ) return $post_id;
-            if ( str_contains( $normalized, $sp_name ) || str_contains( $sp_name, $normalized ) ) return $post_id;
+            if ( $sp_name === $normalized ) {
+				return $post_id;
+            }
+            if ( str_contains( $normalized, $sp_name ) || str_contains( $sp_name, $normalized ) ) {
+				return $post_id;
+            }
         }
         return false;
     }
 
     private function find_sp_player_by_person_id( int $person_id ): int|false {
-        if ( ! $person_id ) return false;
+        if ( ! $person_id ) {
+			return false;
+        }
         global $wpdb;
-        $id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT p.ID FROM {$wpdb->posts} p
+        $id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->posts} p
              INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
              WHERE p.post_type = 'sp_player' AND p.post_status = 'publish'
              AND pm.meta_key = '_bbb_person_id' AND pm.meta_value = %d
              LIMIT 1",
-            $person_id
-        ) );
+                $person_id
+            )
+        );
         return $id ? (int) $id : false;
     }
 
     private function find_sp_event( int $match_id ): int|false {
         global $wpdb;
-        $id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT p.ID FROM {$wpdb->posts} p
+        $id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->posts} p
              INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
              WHERE p.post_type = 'sp_event' AND pm.meta_key = '_bbb_match_id' AND pm.meta_value = %d
              LIMIT 1",
-            $match_id
-        ) );
+                $match_id
+            )
+        );
         return $id ? (int) $id : false;
     }
 
     private function find_sp_event_by_date_and_teams( string $datetime, int $home_wp_id, int $away_wp_id ): int|false {
-        $date = date( 'Y-m-d', strtotime( $datetime ) );
-        $query = new WP_Query([
-            'post_type' => 'sp_event', 'post_status' => 'any', 'posts_per_page' => -1,
-            'date_query' => [[ 'after' => date( 'Y-m-d', strtotime( "$date -1 day" ) ), 'before' => date( 'Y-m-d', strtotime( "$date +1 day" ) ), 'inclusive' => true ]],
-            'meta_query' => [[ 'key' => '_bbb_match_id', 'compare' => 'NOT EXISTS' ]],
-            'fields' => 'ids', 'no_found_rows' => true,
-        ]);
+        $date  = date( 'Y-m-d', strtotime( $datetime ) );
+        $query = new WP_Query(
+            [
+				'post_type'      => 'sp_event',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'date_query'     => [
+					[
+						'after'     => date( 'Y-m-d', strtotime( "$date -1 day" ) ),
+						'before'    => date( 'Y-m-d', strtotime( "$date +1 day" ) ),
+						'inclusive' => true,
+					],
+				],
+				'meta_query'     => [
+					[
+						'key'     => '_bbb_match_id',
+						'compare' => 'NOT EXISTS',
+					],
+				],
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			]
+        );
         foreach ( $query->posts as $post_id ) {
             $sp_teams = get_post_meta( $post_id, 'sp_team' );
-            if ( in_array( $home_wp_id, $sp_teams ) && in_array( $away_wp_id, $sp_teams ) ) return $post_id;
+            if ( in_array( $home_wp_id, $sp_teams, true ) && in_array( $away_wp_id, $sp_teams, true ) ) {
+				return $post_id;
+            }
         }
         return false;
     }
@@ -1728,9 +2052,13 @@ class BBB_Sync_Engine {
         $leagues = [];
         foreach ( $matches as $match ) {
             $liga_data = $match['ligaData'] ?? null;
-            if ( ! $liga_data ) continue;
+            if ( ! $liga_data ) {
+				continue;
+            }
             $liga_id = (int) ( $liga_data['ligaId'] ?? 0 );
-            if ( $liga_id && ! isset( $leagues[ $liga_id ] ) ) $leagues[ $liga_id ] = $liga_data;
+            if ( $liga_id && ! isset( $leagues[ $liga_id ] ) ) {
+				$leagues[ $liga_id ] = $liga_data;
+            }
         }
         return $leagues;
     }
@@ -1740,11 +2068,15 @@ class BBB_Sync_Engine {
         $slug = 'bbb-' . $bbb_liga_id;
         $term = get_term_by( 'slug', $slug, 'sp_league' );
         if ( $term ) {
-            if ( $term->name !== $name ) wp_update_term( $term->term_id, 'sp_league', [ 'name' => $name ] );
+            if ( $term->name !== $name ) {
+				wp_update_term( $term->term_id, 'sp_league', [ 'name' => $name ] );
+            }
             return $term->term_id;
         }
         $result = wp_insert_term( $name, 'sp_league', [ 'slug' => $slug ] );
-        if ( is_wp_error( $result ) ) return false;
+        if ( is_wp_error( $result ) ) {
+			return false;
+        }
 
         // v3.5.1: akName + geschlecht direkt aus ligaData (immer vorhanden)
         update_term_meta( $result['term_id'], '_bbb_liga_id', $bbb_liga_id );
@@ -1756,8 +2088,10 @@ class BBB_Sync_Engine {
     private function ensure_sp_season( array $liga_data ): int|false {
         $season_name = $liga_data['seasonName'] ?? ( ( $liga_data['seasonId'] ?? date( 'Y' ) ) . '/' . ( ( $liga_data['seasonId'] ?? date( 'Y' ) ) + 1 ) );
         $season_slug = sanitize_title( $season_name );
-        $term = get_term_by( 'slug', $season_slug, 'sp_season' );
-        if ( $term ) return $term->term_id;
+        $term        = get_term_by( 'slug', $season_slug, 'sp_season' );
+        if ( $term ) {
+			return $term->term_id;
+        }
         $result = wp_insert_term( $season_name, 'sp_season', [ 'slug' => $season_slug ] );
         if ( is_wp_error( $result ) ) {
             $term = get_term_by( 'name', $season_name, 'sp_season' );
@@ -1774,7 +2108,9 @@ class BBB_Sync_Engine {
      * Diese Methode nutzt die Einstellungen oder findet den Slug automatisch.
      */
     private function get_main_result_slug(): ?string {
-        if ( self::$main_result_slug !== null ) return self::$main_result_slug;
+        if ( self::$main_result_slug !== null ) {
+			return self::$main_result_slug;
+        }
 
         // 1. Aus Einstellungen: Erster konfigurierter Slug = Primär
         $slugs = $this->get_result_slugs();
@@ -1791,13 +2127,15 @@ class BBB_Sync_Engine {
         }
 
         // 3. Fallback: Ersten sp_result Post nehmen
-        $results = get_posts([
-            'post_type'      => 'sp_result',
-            'posts_per_page' => 1,
-            'orderby'        => 'menu_order',
-            'order'          => 'ASC',
-            'post_status'    => 'publish',
-        ]);
+        $results = get_posts(
+            [
+				'post_type'      => 'sp_result',
+				'posts_per_page' => 1,
+				'orderby'        => 'menu_order',
+				'order'          => 'ASC',
+				'post_status'    => 'publish',
+			]
+        );
         if ( ! empty( $results ) ) {
             self::$main_result_slug = $results[0]->post_name;
             $this->log( "Result-Slug erkannt: '{$results[0]->post_name}' (Titel: '{$results[0]->post_title}')" );
@@ -1820,16 +2158,20 @@ class BBB_Sync_Engine {
      * @return string[] Array von Slugs, leer wenn nichts konfiguriert
      */
     public function get_result_slugs(): array {
-        if ( self::$result_slugs_cache !== null ) return self::$result_slugs_cache;
+        if ( self::$result_slugs_cache !== null ) {
+			return self::$result_slugs_cache;
+        }
 
-        $raw = get_option( 'bbb_sync_result_slugs', '' );
-        $slugs = array_filter( array_map( 'trim', explode( ',', $raw ) ) );
+        $raw                      = get_option( 'bbb_sync_result_slugs', '' );
+        $slugs                    = array_filter( array_map( 'trim', explode( ',', $raw ) ) );
         self::$result_slugs_cache = $slugs;
         return $slugs;
     }
 
     private function set_meta_if_not_null( int $post_id, string $key, mixed $value ): void {
-        if ( $value !== null ) update_post_meta( $post_id, $key, $value );
+        if ( $value !== null ) {
+			update_post_meta( $post_id, $key, $value );
+        }
     }
 
     /**
@@ -1837,9 +2179,13 @@ class BBB_Sync_Engine {
      * Schützt manuell eingetragene Daten vor Überschreibung durch den Sync.
      */
     private function set_meta_if_empty( int $post_id, string $key, mixed $value ): void {
-        if ( $value === null || $value === '' || $value === 0 ) return;
+        if ( $value === null || $value === '' || $value === 0 ) {
+			return;
+        }
         $existing = get_post_meta( $post_id, $key, true );
-        if ( $existing !== '' && $existing !== '0' && $existing !== false ) return;
+        if ( $existing !== '' && $existing !== '0' && $existing !== false ) {
+			return;
+        }
         update_post_meta( $post_id, $key, $value );
     }
 
@@ -1848,7 +2194,9 @@ class BBB_Sync_Engine {
      * Kombiniert set_meta_if_not_null + set_meta_if_empty.
      */
     private function set_meta_safe( int $post_id, string $key, mixed $value, bool $is_update ): void {
-        if ( $value === null ) return;
+        if ( $value === null ) {
+			return;
+        }
         if ( $is_update ) {
             $this->set_meta_if_empty( $post_id, $key, $value );
         } else {
@@ -1857,10 +2205,16 @@ class BBB_Sync_Engine {
     }
 
     private function log( string $message, string $level = 'info' ): void {
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( "[BBB-Sync][{$level}] {$message}" );
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( "[BBB-Sync][{$level}] {$message}" );
+        }
         $logs   = get_option( 'bbb_sync_logs', [] );
-        $logs[] = [ 'time' => current_time( 'mysql' ), 'level' => $level, 'message' => $message ];
-        $logs = array_slice( $logs, -200 );
+        $logs[] = [
+			'time'    => current_time( 'mysql' ),
+			'level'   => $level,
+			'message' => $message,
+		];
+        $logs   = array_slice( $logs, -200 );
         update_option( 'bbb_sync_logs', $logs, false );
     }
 

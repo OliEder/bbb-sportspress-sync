@@ -12,7 +12,9 @@
 
 defined( 'ABSPATH' ) || exit;
 
-if ( class_exists( 'BBB_GitHub_Updater' ) ) return;
+if ( class_exists( 'BBB_GitHub_Updater' ) ) {
+	return;
+}
 
 class BBB_GitHub_Updater {
 
@@ -35,10 +37,14 @@ class BBB_GitHub_Updater {
     }
 
     public function check_update( $transient ): mixed {
-        if ( empty( $transient->checked ) ) return $transient;
+        if ( empty( $transient->checked ) ) {
+			return $transient;
+        }
 
         $remote = $this->get_remote_info();
-        if ( ! $remote ) return $transient;
+        if ( ! $remote ) {
+			return $transient;
+        }
 
         if ( version_compare( $this->current_version, $remote['version'], '<' ) ) {
             $transient->response[ $this->plugin_file ] = (object) [
@@ -63,26 +69,32 @@ class BBB_GitHub_Updater {
     }
 
     public function plugin_info( $result, string $action, object $args ): mixed {
-        if ( $action !== 'plugin_information' ) return $result;
-        if ( ( $args->slug ?? '' ) !== $this->plugin_slug ) return $result;
+        if ( $action !== 'plugin_information' ) {
+			return $result;
+        }
+        if ( ( $args->slug ?? '' ) !== $this->plugin_slug ) {
+			return $result;
+        }
 
         $remote = $this->get_remote_info();
-        if ( ! $remote ) return $result;
+        if ( ! $remote ) {
+			return $result;
+        }
 
         return (object) [
-            'name'            => $remote['name'],
-            'slug'            => $this->plugin_slug,
-            'version'         => $remote['version'],
-            'author'          => '<a href="https://github.com/' . esc_attr( $this->github_owner ) . '">Oliver-Marcus Eder</a>',
-            'homepage'        => "https://github.com/{$this->github_owner}/{$this->github_repo}",
-            'download_link'   => $remote['download_url'],
-            'requires'        => '6.0',
-            'requires_php'    => '8.1',
-            'tested'          => get_bloginfo( 'version' ),
-            'last_updated'    => $remote['published_at'],
-            'sections'        => [
-                'description'  => $remote['description'] ?? '',
-                'changelog'    => nl2br( esc_html( $remote['changelog'] ) ),
+            'name'          => $remote['name'],
+            'slug'          => $this->plugin_slug,
+            'version'       => $remote['version'],
+            'author'        => '<a href="https://github.com/' . esc_attr( $this->github_owner ) . '">Oliver-Marcus Eder</a>',
+            'homepage'      => "https://github.com/{$this->github_owner}/{$this->github_repo}",
+            'download_link' => $remote['download_url'],
+            'requires'      => '6.0',
+            'requires_php'  => '8.1',
+            'tested'        => get_bloginfo( 'version' ),
+            'last_updated'  => $remote['published_at'],
+            'sections'      => [
+                'description' => $remote['description'] ?? '',
+                'changelog'   => nl2br( esc_html( $remote['changelog'] ) ),
             ],
         ];
     }
@@ -111,8 +123,10 @@ class BBB_GitHub_Updater {
 
     private function get_remote_info(): ?array {
         $transient_key = "bbb_github_update_{$this->plugin_slug}";
-        $cached = get_transient( $transient_key );
-        if ( $cached !== false ) return $cached;
+        $cached        = get_transient( $transient_key );
+        if ( $cached !== false ) {
+			return $cached;
+        }
 
         $url = sprintf(
             'https://api.github.com/repos/%s/%s/releases/latest',
@@ -120,13 +134,16 @@ class BBB_GitHub_Updater {
             $this->github_repo
         );
 
-        $response = wp_remote_get( $url, [
-            'timeout' => 10,
-            'headers' => [
-                'Accept'     => 'application/vnd.github.v3+json',
-                'User-Agent' => 'BBB-WordPress-Plugin/' . $this->current_version,
-            ],
-        ] );
+        $response = wp_remote_get(
+            $url,
+            [
+				'timeout' => 10,
+				'headers' => [
+					'Accept'     => 'application/vnd.github.v3+json',
+					'User-Agent' => 'BBB-WordPress-Plugin/' . $this->current_version,
+				],
+			]
+        );
 
         if ( is_wp_error( $response ) || wp_remote_retrieve_response_code( $response ) !== 200 ) {
             set_transient( $transient_key, null, HOUR_IN_SECONDS );
@@ -134,7 +151,9 @@ class BBB_GitHub_Updater {
         }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
-        if ( empty( $data['tag_name'] ) ) return null;
+        if ( empty( $data['tag_name'] ) ) {
+			return null;
+        }
 
         $version = ltrim( $data['tag_name'], 'v' );
 

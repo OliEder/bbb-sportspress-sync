@@ -145,9 +145,12 @@ class BBB_Api_Client {
         $url = "https://www.basketball-bund.net/media/team/{$team_permanent_id}/logo";
         $this->log( "GET {$url}" );
 
-        $response = wp_remote_get( $url, [
-            'timeout' => 15,
-        ]);
+        $response = wp_remote_get(
+            $url,
+            [
+				'timeout' => 15,
+			]
+        );
 
         if ( is_wp_error( $response ) ) {
             $this->log( 'Logo Error: ' . $response->get_error_message(), 'error' );
@@ -234,11 +237,11 @@ class BBB_Api_Client {
         $data = $response['data'] ?? [];
 
         return [
-            'liga_data'  => $data['ligaData'] ?? [],
-            'spieltage'  => $data['spieltage'] ?? [],
-            'matches'    => $data['matches'] ?? [],
-            'prev'       => $data['prevSpieltag'] ?? null,
-            'next'       => $data['nextSpieltag'] ?? null,
+            'liga_data' => $data['ligaData'] ?? [],
+            'spieltage' => $data['spieltage'] ?? [],
+            'matches'   => $data['matches'] ?? [],
+            'prev'      => $data['prevSpieltag'] ?? null,
+            'next'      => $data['nextSpieltag'] ?? null,
         ];
     }
 
@@ -272,12 +275,16 @@ class BBB_Api_Client {
         // Weitere Runden laden wenn vorhanden
         foreach ( $spieltage as $st ) {
             $nr = (int) ( $st['spieltag'] ?? 0 );
-            if ( $nr <= 1 || $nr === 0 ) continue;
+            if ( $nr <= 1 || $nr === 0 ) {
+				continue;
+            }
 
             $this->throttle();
             $round = $this->get_liga_matchday( $liga_id, $nr );
 
-            if ( is_wp_error( $round ) ) continue;
+            if ( is_wp_error( $round ) ) {
+				continue;
+            }
 
             $rounds[ $nr ] = [
                 'name'    => $st['bezeichnung'] ?? "{$nr}. Runde",
@@ -301,10 +308,13 @@ class BBB_Api_Client {
         $url = $this->base_url . $endpoint;
         $this->log( "GET {$url}" );
 
-        $response = wp_remote_get( $url, [
-            'timeout' => 30,
-            'headers' => [ 'Accept' => 'application/json' ],
-        ]);
+        $response = wp_remote_get(
+            $url,
+            [
+				'timeout' => 30,
+				'headers' => [ 'Accept' => 'application/json' ],
+			]
+        );
 
         return $this->handle_response( $response );
     }
@@ -358,7 +368,7 @@ class BBB_Api_Client {
             'level'   => $level,
             'message' => $message,
         ];
-        $logs = array_slice( $logs, -200 );
+        $logs   = array_slice( $logs, -200 );
         update_option( 'bbb_sync_logs', $logs, false );
     }
 }

@@ -43,7 +43,7 @@ class BBB_Cron {
             'stats'    => $stats,
             'trigger'  => 'cron',
         ];
-        $history = array_slice( $history, -50 );
+        $history   = array_slice( $history, -50 );
         update_option( 'bbb_sync_history', $history, false );
     }
 }

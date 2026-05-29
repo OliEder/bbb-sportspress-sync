@@ -56,8 +56,8 @@ class BBB_Logo_Handler {
         }
 
         // ── 2. Persistent Cache (6 Monate) ──
-        $option_key    = "bbb_club_logo_{$club_id}";
-        $cached        = get_option( $option_key, [] );
+        $option_key     = "bbb_club_logo_{$club_id}";
+        $cached         = get_option( $option_key, [] );
         $cache_duration = 6 * MONTH_IN_SECONDS;
 
         if (
@@ -92,11 +92,15 @@ class BBB_Logo_Handler {
         }
 
         // ── 5. Cachen ──
-        update_option( $option_key, [
-            'attachment_id' => $attachment_id,
-            'fetched_at'    => time(),
-            'source_team'   => $team_permanent_id,
-        ], false );
+        update_option(
+            $option_key,
+            [
+				'attachment_id' => $attachment_id,
+				'fetched_at'    => time(),
+				'source_team'   => $team_permanent_id,
+			],
+			false
+        );
 
         $this->club_logo_cache[ $club_id ] = $attachment_id;
 
@@ -159,14 +163,16 @@ class BBB_Logo_Handler {
     private function find_existing_attachment( string $filename ): int|false {
         $title = sanitize_file_name( pathinfo( $filename, PATHINFO_FILENAME ) );
 
-        $query = new WP_Query([
-            'post_type'      => 'attachment',
-            'post_status'    => 'inherit',
-            'posts_per_page' => 1,
-            'title'          => $title,
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
-        ]);
+        $query = new WP_Query(
+            [
+				'post_type'      => 'attachment',
+				'post_status'    => 'inherit',
+				'posts_per_page' => 1,
+				'title'          => $title,
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			]
+        );
 
         return $query->have_posts() ? $query->posts[0] : false;
     }
