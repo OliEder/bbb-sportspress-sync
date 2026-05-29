@@ -21,17 +21,17 @@ class BBB_Admin_Page {
         add_action( 'admin_init', [ $this, 'handle_actions' ] );
         add_action( 'admin_notices', [ $this, 'show_notices' ] );
 
-        // AJAX endpoints
+        // AJAX endpoints.
         add_action( 'wp_ajax_bbb_start_sync', [ $this, 'ajax_start_sync' ] );
         add_action( 'wp_ajax_bbb_sync_progress', [ $this, 'ajax_sync_progress' ] );
 
-        // Meta-Box "DBB-Daten" auf sp_player + sp_team + sp_event
+        // Meta-Box "DBB-Daten" auf sp_player + sp_team + sp_event.
         add_action( 'add_meta_boxes', [ $this, 'add_dbb_meta_boxes' ] );
         add_action( 'save_post_sp_player', [ $this, 'save_dbb_meta' ] );
         add_action( 'save_post_sp_team', [ $this, 'save_dbb_meta' ] );
         add_action( 'save_post_sp_event', [ $this, 'save_dbb_meta' ] );
 
-        // Venue-Taxonomie: BBB-Felder im Term-Editor
+        // Venue-Taxonomie: BBB-Felder im Term-Editor.
         add_action( 'sp_venue_edit_form_fields', [ $this, 'render_venue_bbb_fields' ], 10, 2 );
         add_action( 'edited_sp_venue', [ $this, 'save_venue_bbb_fields' ] );
     }
@@ -159,19 +159,19 @@ class BBB_Admin_Page {
             wp_send_json_error( 'Unauthorized' );
         }
 
-        // Deadlock-Schutz: Wenn running > 5 Minuten, dann Reset
+        // Deadlock-Schutz: Wenn running > 5 Minuten, dann Reset.
         $progress = BBB_Sync_Engine::get_progress();
         if ( ! empty( $progress['running'] ) ) {
             $started = $progress['started_at'] ?? 0;
             if ( $started && ( time() - $started ) > 300 ) {
-                // Stale lock → Reset
+                // Stale lock → Reset.
                 delete_transient( 'bbb_sync_progress' );
             } else {
                 wp_send_json_error( 'Sync läuft bereits.' );
             }
         }
 
-        // Progress initialisieren
+        // Progress initialisieren.
         set_transient(
             'bbb_sync_progress',
             [
@@ -193,7 +193,7 @@ class BBB_Admin_Page {
         // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- functions may be disabled on shared hosting; failure is non-critical
         @ignore_user_abort( true );
 
-        // JSON-Response aufbauen
+        // JSON-Response aufbauen.
         $response = wp_json_encode(
             [
 				'success' => true,
@@ -201,12 +201,12 @@ class BBB_Admin_Page {
 			]
         );
 
-        // Alle bestehenden Output-Buffer leeren
+        // Alle bestehenden Output-Buffer leeren.
         while ( ob_get_level() > 0 ) {
             ob_end_clean();
         }
 
-        // Response senden und Connection schließen
+        // Response senden und Connection schließen.
         header( 'Content-Type: application/json; charset=utf-8' );
         header( 'Content-Length: ' . strlen( $response ) );
         header( 'Connection: close' );
@@ -217,15 +217,15 @@ class BBB_Admin_Page {
             fastcgi_finish_request();
         }
 
-        // Ab hier läuft PHP im Hintergrund weiter
-        // Der Browser hat die Antwort bereits erhalten
+        // Ab hier läuft PHP im Hintergrund weiter.
+        // Der Browser hat die Antwort bereits erhalten.
         $engine = new BBB_Sync_Engine();
 
         try {
             $stats = $engine->sync_all();
             set_transient( 'bbb_sync_notice', $this->format_stats_message( $stats ), 300 );
         } catch ( \Throwable $e ) {
-            // Fehler abfangen damit Progress auf jeden Fall auf "done" gesetzt wird
+            // Fehler abfangen damit Progress auf jeden Fall auf "done" gesetzt wird.
             set_transient(
                 'bbb_sync_progress',
                 [
@@ -242,7 +242,7 @@ class BBB_Admin_Page {
             set_transient( 'bbb_sync_notice_type', 'error', 300 );
         }
 
-        exit; // PHP-Prozess beenden
+        exit; // PHP-Prozess beenden.
     }
 
     // ═════════════════════════════════════════
@@ -257,7 +257,7 @@ class BBB_Admin_Page {
 
         $progress = BBB_Sync_Engine::get_progress();
 
-        // Deadlock-Erkennung: Sync läuft angeblich, aber kein Update seit 120s
+        // Deadlock-Erkennung: Sync läuft angeblich, aber kein Update seit 120s.
         if ( ! empty( $progress['running'] ) ) {
             $started     = $progress['started_at'] ?? 0;
             $last_update = $progress['last_update'] ?? $started;
@@ -318,7 +318,7 @@ class BBB_Admin_Page {
             exit;
         }
 
-        // Tabellen-Cache leeren (Live Tables + Brackets)
+        // Tabellen-Cache leeren (Live Tables + Brackets).
         if ( isset( $_POST['bbb_clear_table_cache'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             global $wpdb;
             $deleted = $wpdb->query(
@@ -333,7 +333,7 @@ class BBB_Admin_Page {
             exit;
         }
 
-        // Deadlock manuell lösen
+        // Deadlock manuell lösen.
         if ( isset( $_POST['bbb_reset_sync_lock'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             delete_transient( 'bbb_sync_progress' );
             set_transient( 'bbb_sync_notice', 'Sync-Lock gelöst.', 30 );
@@ -341,19 +341,19 @@ class BBB_Admin_Page {
             exit;
         }
 
-        // Repair: Result-Keys in sp_results korrigieren
+        // Repair: Result-Keys in sp_results korrigieren.
         if ( isset( $_POST['bbb_repair_result_keys'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             $this->handle_repair_result_keys();
             exit;
         }
 
-        // Cleanup: Spieler löschen
+        // Cleanup: Spieler löschen.
         if ( isset( $_POST['bbb_cleanup_players'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             $this->handle_cleanup_players();
             exit;
         }
 
-        // Cleanup: ALLES löschen (Full Reset)
+        // Cleanup: ALLES löschen (Full Reset).
         if ( isset( $_POST['bbb_cleanup_all'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             $this->handle_cleanup_all();
             exit;
@@ -405,7 +405,7 @@ class BBB_Admin_Page {
     public function render_dbb_meta_box( \WP_Post $post ): void {
         wp_nonce_field( 'bbb_dbb_meta', 'bbb_dbb_meta_nonce' );
 
-        if ( $post->post_type === 'sp_player' ) {
+        if ( 'sp_player' === $post->post_type ) {
             $person_id = get_post_meta( $post->ID, '_bbb_person_id', true );
             ?>
             <p>
@@ -420,7 +420,7 @@ class BBB_Admin_Page {
             </p>
             <?php
 
-        } elseif ( $post->post_type === 'sp_team' ) {
+        } elseif ( 'sp_team' === $post->post_type ) {
             $permanent_id = get_post_meta( $post->ID, '_bbb_team_permanent_id', true );
             ?>
             <p>
@@ -435,7 +435,7 @@ class BBB_Admin_Page {
             </p>
             <?php
 
-        } elseif ( $post->post_type === 'sp_event' ) {
+        } elseif ( 'sp_event' === $post->post_type ) {
             $match_id  = get_post_meta( $post->ID, '_bbb_match_id', true );
             $liga_id   = get_post_meta( $post->ID, '_bbb_liga_id', true );
             $match_day = get_post_meta( $post->ID, '_bbb_match_day', true );
@@ -476,7 +476,7 @@ class BBB_Admin_Page {
             <?php
         }
 
-        // Unlock-Checkbox (alle Post-Types)
+        // Unlock-Checkbox (alle Post-Types).
         ?>
         <hr style="margin:10px 0 8px;">
         <label style="font-size:11px; color:#999; cursor:pointer;">
@@ -520,7 +520,7 @@ class BBB_Admin_Page {
 
         $post_type = get_post_type( $post_id );
 
-        if ( $post_type === 'sp_player' && isset( $_POST['bbb_person_id'] ) ) {
+        if ( 'sp_player' === $post_type && isset( $_POST['bbb_person_id'] ) ) {
             $val = absint( $_POST['bbb_person_id'] );
             if ( $val > 0 ) {
                 update_post_meta( $post_id, '_bbb_person_id', $val );
@@ -529,7 +529,7 @@ class BBB_Admin_Page {
             }
         }
 
-        if ( $post_type === 'sp_team' && isset( $_POST['bbb_team_permanent_id'] ) ) {
+        if ( 'sp_team' === $post_type && isset( $_POST['bbb_team_permanent_id'] ) ) {
             $val = absint( $_POST['bbb_team_permanent_id'] );
             if ( $val > 0 ) {
                 update_post_meta( $post_id, '_bbb_team_permanent_id', $val );
@@ -538,7 +538,7 @@ class BBB_Admin_Page {
             }
         }
 
-        if ( $post_type === 'sp_event' ) {
+        if ( 'sp_event' === $post_type ) {
             if ( isset( $_POST['bbb_match_id'] ) ) {
                 $val = absint( $_POST['bbb_match_id'] );
                 if ( $val > 0 ) {
@@ -686,7 +686,7 @@ class BBB_Admin_Page {
         $club_id    = (int) get_option( 'bbb_sync_club_id', 0 );
         $nonce      = wp_create_nonce( 'bbb_sync_nonce' );
 
-        // Prüfe ob gerade ein Sync läuft (z.B. nach Tab-Wechsel)
+        // Prüfe ob gerade ein Sync läuft (z.B. nach Tab-Wechsel).
         $current_progress = BBB_Sync_Engine::get_progress();
         $sync_running     = ! empty( $current_progress['running'] );
         ?>
@@ -1123,7 +1123,7 @@ class BBB_Admin_Page {
                             );
                             $saved_mapping = json_decode( get_option( 'bbb_sync_stat_mapping', '' ), true ) ?: [];
 
-                            // BBB-API Felder mit Labels und Default-SP-Slugs
+                            // BBB-API Felder mit Labels und Default-SP-Slugs.
                             $bbb_fields = [
                                 'Punkte & Effizienz'       => [
                                     'pts' => [ 'Punkte (pts)', 'pts' ],
@@ -1206,7 +1206,7 @@ class BBB_Admin_Page {
     // ─────────────────────────────────────────
 
     private function render_shortcodes_card(): void {
-        // Ligen aus sp_league mit _bbb_liga_id
+        // Ligen aus sp_league mit _bbb_liga_id.
         $leagues = get_terms(
             [
 				'taxonomy'   => 'sp_league',
@@ -1268,7 +1268,7 @@ class BBB_Admin_Page {
                     <tr>
                         <td><?php echo esc_html( $r['name'] ); ?></td>
                         <td>
-                            <?php if ( $r['type'] === 'league' ) : ?>
+                            <?php if ( 'league' === $r['type'] ) : ?>
                                 <span style="color:#27ae60;">●</span> Tabelle
                             <?php else : ?>
                                 <span style="color:#e67e22;">●</span> Turnier
@@ -1277,7 +1277,7 @@ class BBB_Admin_Page {
                         <td>
                             <code style="font-size:12px; user-select:all;">
                             <?php
-                                echo $r['type'] === 'league'
+                                echo 'league' === $r['type']
                                     ? '[bbb_table liga_id="' . esc_attr( $r['liga_id'] ) . '"]'
                                     : '[bbb_bracket liga_id="' . esc_attr( $r['liga_id'] ) . '"]';
                             ?>
@@ -1286,7 +1286,7 @@ class BBB_Admin_Page {
                         <td>
                             <code style="font-size:12px; user-select:all;">
                             <?php
-                                echo $r['type'] === 'league'
+                                echo 'league' === $r['type']
                                     ? '[gdlr_core_bbb_table liga-id="' . esc_attr( $r['liga_id'] ) . '"]'
                                     : '[gdlr_core_bbb_bracket liga-id="' . esc_attr( $r['liga_id'] ) . '"]';
                             ?>
@@ -1309,7 +1309,7 @@ class BBB_Admin_Page {
     // ─────────────────────────────────────────
 
     private function render_cleanup_tab(): void {
-        // Eigene Teams laden
+        // Eigene Teams laden.
         $own_team_ids = get_option( 'bbb_sync_own_teams', [] );
         $teams        = [];
         foreach ( $own_team_ids as $pid ) {
@@ -1332,7 +1332,7 @@ class BBB_Admin_Page {
             }
         }
 
-        // Seasons laden
+        // Seasons laden.
         $seasons = get_terms(
             [
 				'taxonomy'   => 'sp_season',
@@ -1345,7 +1345,7 @@ class BBB_Admin_Page {
 			$seasons = [];
         }
 
-        // Zähler für Übersicht
+        // Zähler für Übersicht.
         global $wpdb;
         $total_players      = (int) $wpdb->get_var(
             "SELECT COUNT(*) FROM {$wpdb->posts} p
@@ -1536,10 +1536,10 @@ class BBB_Admin_Page {
                 $score   = null;
                 $outcome = $data['outcome'] ?? [];
                 foreach ( $data as $k => $v ) {
-                    if ( $k === 'outcome' ) {
+                    if ( 'outcome' === $k ) {
 						continue;
                     }
-                    if ( $v !== '' && $v !== null ) {
+                    if ( '' !== $v && null !== $v ) {
                         $score = $v;
                         break;
                     }
@@ -1548,7 +1548,7 @@ class BBB_Admin_Page {
                 $new_data = [ 'outcome' => $outcome ];
                 foreach ( $target_slugs as $slug ) {
                     $old_val = $data[ $slug ] ?? null;
-                    if ( $score !== null && ( $old_val === null || $old_val === '' ) ) {
+                    if ( null !== $score && ( null === $old_val || '' === $old_val ) ) {
                         $new_data[ $slug ] = $score;
                         $changed           = true;
                     } else {
@@ -1557,7 +1557,7 @@ class BBB_Admin_Page {
                 }
 
                 foreach ( $data as $k => $v ) {
-                    if ( $k === 'outcome' ) {
+                    if ( 'outcome' === $k ) {
 						continue;
                     }
                     if ( ! in_array( $k, $valid_slugs, true ) && ! isset( $new_data[ $k ] ) ) {
@@ -1576,7 +1576,7 @@ class BBB_Admin_Page {
             }
 
             $current_main = get_post_meta( $event->ID, 'sp_main_result', true );
-            if ( $current_main !== $primary_slug ) {
+            if ( $primary_slug !== $current_main ) {
                 update_post_meta( $event->ID, 'sp_main_result', $primary_slug );
                 ++$main_fixed;
             }
@@ -1592,7 +1592,7 @@ class BBB_Admin_Page {
         $tables_fixed = 0;
         foreach ( $tables as $table ) {
             $current = get_post_meta( $table->ID, 'sp_main_result', true );
-            if ( $current !== $primary_slug ) {
+            if ( $primary_slug !== $current ) {
                 update_post_meta( $table->ID, 'sp_main_result', $primary_slug );
                 ++$tables_fixed;
             }
@@ -1636,14 +1636,14 @@ class BBB_Admin_Page {
             ],
         ];
 
-        if ( $team_filter !== 'all' ) {
+        if ( 'all' !== $team_filter ) {
             $query_args['meta_query'][] = [
                 'key'   => 'sp_team',
 				'value' => (int) $team_filter,
             ];
         }
 
-        if ( $season_filter !== 'all' ) {
+        if ( 'all' !== $season_filter ) {
             $query_args['tax_query'] = [
                 [
 					'taxonomy' => 'sp_season',
@@ -1661,7 +1661,7 @@ class BBB_Admin_Page {
         }
 
         if ( $deleted > 0 ) {
-            if ( $team_filter !== 'all' ) {
+            if ( 'all' !== $team_filter ) {
                 $event_ids = $wpdb->get_col(
                     $wpdb->prepare(
                         "SELECT post_id FROM {$wpdb->postmeta}
@@ -1678,7 +1678,7 @@ class BBB_Admin_Page {
                 $wpdb->query( "DELETE FROM {$wpdb->postmeta} WHERE meta_key = '_bbb_boxscore_synced'" );
             }
 
-            if ( $team_filter !== 'all' ) {
+            if ( 'all' !== $team_filter ) {
                 $lists = $wpdb->get_col(
                     $wpdb->prepare(
                         "SELECT post_id FROM {$wpdb->postmeta}
@@ -1693,10 +1693,10 @@ class BBB_Admin_Page {
         }
 
         $label = [];
-        if ( $team_filter !== 'all' ) {
+        if ( 'all' !== $team_filter ) {
 			$label[] = get_the_title( (int) $team_filter );
         }
-        if ( $season_filter !== 'all' ) {
+        if ( 'all' !== $season_filter ) {
             $term = get_term( (int) $season_filter, 'sp_season' );
             if ( $term && ! is_wp_error( $term ) ) {
 				$label[] = $term->name;
@@ -1831,7 +1831,7 @@ class BBB_Admin_Page {
             }
         }
 
-        if ( $filter !== 'all' ) {
+        if ( 'all' !== $filter ) {
             $logs = array_filter( $logs, fn( $l ) => ( $l['level'] ?? 'info' ) === $filter );
         }
         ?>
@@ -1864,8 +1864,8 @@ class BBB_Admin_Page {
                     'warning' => [ '⚠️ Warnungen', $counts['warning'] ],
                     'info'    => [ 'ℹ️ Info', $counts['info'] ],
                 ] as $level => [$label, $count] ) :
-                    $active = ( $filter === $level ) ? ' active' : '';
-                    $url    = ( $level === 'all' ) ? $base_url : $base_url . '&log_level=' . $level;
+                    $active = ( $level === $filter ) ? ' active' : '';
+                    $url    = ( 'all' === $level ) ? $base_url : $base_url . '&log_level=' . $level;
 					?>
                     <a href="<?php echo esc_url( $url ); ?>" class="<?php echo esc_attr( $active ); ?>">
                         <?php echo esc_html( $label ); ?>
@@ -1882,7 +1882,7 @@ class BBB_Admin_Page {
             </div>
 
             <?php if ( empty( $logs ) ) : ?>
-                <p>Keine <?php echo $filter !== 'all' ? esc_html( $filter ) . '-' : ''; ?>Logs.</p>
+                <p>Keine <?php echo 'all' !== $filter ? esc_html( $filter ) . '-' : ''; ?>Logs.</p>
             <?php else : ?>
                 <div style="max-height:600px; overflow-y:auto; background:#fafafa; border:1px solid #ddd; border-radius:3px;">
                     <?php

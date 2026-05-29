@@ -158,7 +158,7 @@ class BBB_Api_Client {
         }
 
         $code = wp_remote_retrieve_response_code( $response );
-        if ( $code !== 200 ) {
+        if ( 200 !== $code ) {
             return new WP_Error( 'bbb_logo_error', "HTTP {$code} für Logo Team {$team_permanent_id}" );
         }
 
@@ -255,7 +255,7 @@ class BBB_Api_Client {
      * @return array|WP_Error { liga_data, rounds: [ spieltag => { name, matches[] } ] }
      */
     public function get_tournament_rounds( int $liga_id ): array|WP_Error {
-        // Lade Spieltag 1 → enthält spieltage[] mit allen verfügbaren Runden
+        // Lade Spieltag 1 → enthält spieltage[] mit allen verfügbaren Runden.
         $first = $this->get_liga_matchday( $liga_id, 1 );
 
         if ( is_wp_error( $first ) ) {
@@ -272,10 +272,10 @@ class BBB_Api_Client {
             ],
         ];
 
-        // Weitere Runden laden wenn vorhanden
+        // Weitere Runden laden wenn vorhanden.
         foreach ( $spieltage as $st ) {
             $nr = (int) ( $st['spieltag'] ?? 0 );
-            if ( $nr <= 1 || $nr === 0 ) {
+            if ( $nr <= 1 || 0 === $nr ) {
 				continue;
             }
 
@@ -328,7 +328,7 @@ class BBB_Api_Client {
         $code = wp_remote_retrieve_response_code( $response );
         $body = wp_remote_retrieve_body( $response );
 
-        if ( $code !== 200 ) {
+        if ( 200 !== $code ) {
             $this->log( "HTTP {$code}: {$body}", 'error' );
             return new WP_Error( 'bbb_api_http_error', "HTTP {$code}", [ 'status' => $code ] );
         }
@@ -340,7 +340,7 @@ class BBB_Api_Client {
             return new WP_Error( 'bbb_api_json_error', json_last_error_msg() );
         }
 
-        // BBB API: status "0" = success
+        // BBB API: status "0" = success.
         if ( ( $data['status'] ?? '1' ) !== '0' ) {
             $message = $data['message'] ?? 'Unknown API error';
             $this->log( "API Error: {$message}", 'error' );

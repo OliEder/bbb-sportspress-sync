@@ -92,7 +92,7 @@ class BBB_Sync_Engine {
             [
 				'user_login'   => self::SYNC_USER_LOGIN,
 				'user_pass'    => wp_generate_password( 32, true, true ),
-				'user_email'   => 'sync@basketball-bund.net', // Nicht-existierende Adresse, nur Pflichtfeld
+				'user_email'   => 'sync@basketball-bund.net', // Nicht-existierende Adresse, nur Pflichtfeld.
 				'display_name' => 'basketball-bund.net',
 				'first_name'   => 'BBB',
 				'last_name'    => 'Daten-Sync',
@@ -122,11 +122,11 @@ class BBB_Sync_Engine {
     // ═════════════════════════════════════════
 
     public function ensure_sportspress_setup(): void {
-        // Sync-Benutzer sicherstellen (Autor für alle synchronisierten Inhalte)
+        // Sync-Benutzer sicherstellen (Autor für alle synchronisierten Inhalte).
         $this->ensure_sync_user();
         $this->player_sync->set_sync_user_id( $this->get_sync_user_id() );
 
-        // Result column: Points – existierenden suchen oder "pts" erstellen
+        // Result column: Points – existierenden suchen oder "pts" erstellen.
         $main_slug = $this->get_main_result_slug();
         if ( ! $main_slug ) {
             $result_id = wp_insert_post(
@@ -164,7 +164,7 @@ class BBB_Sync_Engine {
             }
         }
 
-        // Basketball Performance-Typen
+        // Basketball Performance-Typen.
         $performance_types = [
             'pts' => [ 'PTS', 1 ],
 			'ast' => [ 'AST', 2 ],
@@ -221,7 +221,7 @@ class BBB_Sync_Engine {
     private function deduplicate_teams(): void {
         global $wpdb;
 
-        // Alle Teams mit _bbb_team_permanent_id gruppiert laden
+        // Alle Teams mit _bbb_team_permanent_id gruppiert laden.
         $results = $wpdb->get_results(
             "
             SELECT p.ID, pm.meta_value AS permanent_id
@@ -236,7 +236,7 @@ class BBB_Sync_Engine {
 			return;
         }
 
-        // Gruppiere nach permanent_id
+        // Gruppiere nach permanent_id.
         $groups = [];
         foreach ( $results as $row ) {
             $pid = (int) $row->permanent_id;
@@ -253,14 +253,14 @@ class BBB_Sync_Engine {
 				continue;
             }
 
-            // Ersten behalten (ältester = niedrigste ID)
+            // Ersten behalten (ältester = niedrigste ID).
             $keep_id    = array_shift( $wp_ids );
             $keep_title = get_the_title( $keep_id );
 
             foreach ( $wp_ids as $dup_id ) {
                 $dup_title = get_the_title( $dup_id );
 
-                // Alle sp_team Referenzen auf Events umhängen
+                // Alle sp_team Referenzen auf Events umhängen.
                 $events_with_dup = $wpdb->get_col(
                     $wpdb->prepare(
                         "SELECT post_id FROM {$wpdb->postmeta}
@@ -270,7 +270,7 @@ class BBB_Sync_Engine {
                 );
 
                 foreach ( $events_with_dup as $event_id ) {
-                    // Duplikat-Referenz durch Keep-Referenz ersetzen
+                    // Duplikat-Referenz durch Keep-Referenz ersetzen.
                     $wpdb->update(
                         $wpdb->postmeta,
                         [ 'meta_value' => $keep_id ],
@@ -284,7 +284,7 @@ class BBB_Sync_Engine {
                     );
                 }
 
-                // sp_results Meta: Team-IDs in serialisierten Arrays ersetzen
+                // sp_results Meta: Team-IDs in serialisierten Arrays ersetzen.
                 $events_with_results = $wpdb->get_results(
                     $wpdb->prepare(
                         "SELECT post_id, meta_value FROM {$wpdb->postmeta}
@@ -302,7 +302,7 @@ class BBB_Sync_Engine {
                     }
                 }
 
-                // sp_players Meta: Team-IDs ersetzen
+                // sp_players Meta: Team-IDs ersetzen.
                 $events_with_players = $wpdb->get_results(
                     $wpdb->prepare(
                         "SELECT post_id, meta_value FROM {$wpdb->postmeta}
@@ -320,7 +320,7 @@ class BBB_Sync_Engine {
                     }
                 }
 
-                // Spieler: sp_team + sp_current_team umhängen
+                // Spieler: sp_team + sp_current_team umhängen.
                 $wpdb->update(
                     $wpdb->postmeta,
                     [ 'meta_value' => $keep_id ],
@@ -342,7 +342,7 @@ class BBB_Sync_Engine {
                     [ '%s', '%d' ]
                 );
 
-                // Spielerlisten: sp_team Meta umhängen
+                // Spielerlisten: sp_team Meta umhängen.
                 $wpdb->update(
                     $wpdb->postmeta,
                     [ 'meta_value' => $keep_id ],
@@ -354,7 +354,7 @@ class BBB_Sync_Engine {
                     [ '%s', '%d' ]
                 );
 
-                // Taxonomien vom Duplikat auf Keep übertragen
+                // Taxonomien vom Duplikat auf Keep übertragen.
                 foreach ( [ 'sp_league', 'sp_season' ] as $tax ) {
                     $terms = wp_get_object_terms( $dup_id, $tax, [ 'fields' => 'ids' ] );
                     if ( ! is_wp_error( $terms ) && ! empty( $terms ) ) {
@@ -362,7 +362,7 @@ class BBB_Sync_Engine {
                     }
                 }
 
-                // Duplikat löschen
+                // Duplikat löschen.
                 wp_delete_post( $dup_id, true );
                 ++$total_removed;
 
@@ -373,7 +373,7 @@ class BBB_Sync_Engine {
         if ( $total_removed > 0 ) {
             $this->stats['teams_deduped'] = $total_removed;
             $this->log( "Team-Deduplizierung: {$total_removed} Duplikate entfernt" );
-            // WP Object Cache leeren nach massiven DB-Änderungen
+            // WP Object Cache leeren nach massiven DB-Änderungen.
             wp_cache_flush();
         }
     }
@@ -412,7 +412,7 @@ class BBB_Sync_Engine {
                 $leagues[ $liga_id ] = $liga_data;
             }
 
-            // v3.5.1: akName + geschlecht sind IMMER in ligaData vorhanden
+            // v3.5.1: akName + geschlecht sind IMMER in ligaData vorhanden.
             $ak_name    = $liga_data['akName'] ?? '';
             $geschlecht = $liga_data['geschlecht'] ?? '';
             $liga_name  = $liga_data['liganame'] ?? '';
@@ -498,7 +498,7 @@ class BBB_Sync_Engine {
 
         $this->ensure_sportspress_setup();
 
-        // Version-Upgrades: Flags resetten → erzwingt Re-Sync
+        // Version-Upgrades: Flags resetten → erzwingt Re-Sync.
         $last_version = get_option( 'bbb_sync_engine_version', '0' );
         if ( version_compare( $last_version, '3.5.0', '<' ) ) {
             $this->reset_boxscore_flags();
@@ -517,7 +517,7 @@ class BBB_Sync_Engine {
             $this->log( 'v3.5.3 Upgrade: Post-Autoren auf Sync-User migriert' );
         }
 
-        // v3.5.0: Team-Deduplizierung VOR dem eigentlichen Sync
+        // v3.5.0: Team-Deduplizierung VOR dem eigentlichen Sync.
         $this->update_progress(
             [
 				'running'       => true,
@@ -558,7 +558,7 @@ class BBB_Sync_Engine {
             $this->api->throttle();
         }
 
-        // Phase 3: Liga-Spielpläne – ALLE Spiele jeder Liga synken (für korrekte Tabellen)
+        // Phase 3: Liga-Spielpläne – ALLE Spiele jeder Liga synken (für korrekte Tabellen).
         if ( ! empty( $this->discovered_liga_ids ) ) {
             $total_ligas = count( $this->discovered_liga_ids );
             $this->log( sprintf( 'Starte Liga-Spielplan-Sync für %d Ligen...', $total_ligas ) );
@@ -645,7 +645,7 @@ class BBB_Sync_Engine {
         $leagues                       = $this->extract_leagues( $matches );
         $this->stats['leagues_found'] += count( $leagues );
 
-        // Liga-IDs sammeln für späteren Spielplan-Sync (alle Spiele der Liga)
+        // Liga-IDs sammeln für späteren Spielplan-Sync (alle Spiele der Liga).
         foreach ( array_keys( $leagues ) as $lid ) {
             if ( ! in_array( $lid, $this->discovered_liga_ids, true ) ) {
                 $this->discovered_liga_ids[] = $lid;
@@ -737,7 +737,7 @@ class BBB_Sync_Engine {
     ): array {
         $teams = [];
 
-        // v3.5.0: Erstes ligaData komplett loggen für Diagnose
+        // v3.5.0: Erstes ligaData komplett loggen für Diagnose.
         static $liga_data_logged = false;
 
         foreach ( $matches as $match ) {
@@ -746,14 +746,14 @@ class BBB_Sync_Engine {
             $season_name = $liga_data['seasonName'] ?? '';
             $liga_name   = $liga_data['liganame'] ?? '';
 
-            // v3.5.0: Debug-Log für ligaData Feldnamen (einmalig)
+            // v3.5.0: Debug-Log für ligaData Feldnamen (einmalig).
             if ( ! $liga_data_logged && ! empty( $liga_data ) ) {
                 $this->log( 'ligaData Keys: [' . implode( ', ', array_keys( $liga_data ) ) . ']' );
                 $this->log( 'ligaData Sample: ' . wp_json_encode( $liga_data, JSON_UNESCAPED_UNICODE ) );
                 $liga_data_logged = true;
             }
 
-            // v3.5.1: akName + geschlecht direkt aus ligaData (immer vorhanden)
+            // v3.5.1: akName + geschlecht direkt aus ligaData (immer vorhanden).
             $ak_name    = $liga_data['akName'] ?? '';
             $geschlecht = $liga_data['geschlecht'] ?? '';
 
@@ -792,7 +792,7 @@ class BBB_Sync_Engine {
             }
         }
 
-        // Debug: Eigene Teams mit extrahiertem AK/Geschlecht loggen
+        // Debug: Eigene Teams mit extrahiertem AK/Geschlecht loggen.
         foreach ( $teams as $pid => $ti ) {
             if ( $ti['is_own'] ) {
                 $this->log(
@@ -850,7 +850,7 @@ class BBB_Sync_Engine {
 			return false;
         }
 
-        // v3.5.2: Team-Name mit AK + Geschlecht anreichern (alle Teams, außer Senioren)
+        // v3.5.2: Team-Name mit AK + Geschlecht anreichern (alle Teams, außer Senioren).
         $display_name = $team_name;
         if ( $ak_name && mb_strtolower( $ak_name ) !== 'senioren' ) {
             $suffix = $geschlecht ? "{$ak_name} {$geschlecht}" : $ak_name;
@@ -860,7 +860,7 @@ class BBB_Sync_Engine {
             $this->log( "Team-Name: '{$team_name}' → '{$display_name}' (AK={$ak_name}, G={$geschlecht})" );
         }
 
-        // v3.5.0: Suche per permanentId (nach Dedup gibt's nur noch 1 Treffer)
+        // v3.5.0: Suche per permanentId (nach Dedup gibt's nur noch 1 Treffer).
         $existing_id = $this->find_sp_team_by_permanent_id( $permanent_id );
         if ( ! $existing_id ) {
             $existing_id = $this->find_sp_team_by_name( $team_name );
@@ -884,7 +884,7 @@ class BBB_Sync_Engine {
         if ( $is_update ) {
             // ═══ UPDATE: Titel + Content NIE überschreiben ═══
             $wp_id = $existing_id;
-            // Nur bei Adoption (noch kein _bbb_team_permanent_id) Titel setzen
+            // Nur bei Adoption (noch kein _bbb_team_permanent_id) Titel setzen.
             if ( ! get_post_meta( $existing_id, '_bbb_team_permanent_id', true ) ) {
                 wp_update_post(
                     [
@@ -905,20 +905,20 @@ class BBB_Sync_Engine {
             ++$this->stats['teams_created'];
         }
 
-        // BBB-interne Meta (Primary Keys + Zuordnung – immer aktualisieren)
+        // BBB-interne Meta (Primary Keys + Zuordnung – immer aktualisieren).
         update_post_meta( $wp_id, '_bbb_team_permanent_id', $permanent_id );
         update_post_meta( $wp_id, '_bbb_season_team_id', $season_team_id );
         update_post_meta( $wp_id, '_bbb_club_id', $club_id );
         update_post_meta( $wp_id, '_bbb_is_own_team', $is_own ? '1' : '0' );
 
-        // SP-Felder: Nur setzen wenn leer (schützt manuelle Änderungen)
-        if ( $short_name !== null ) {
+        // SP-Felder: Nur setzen wenn leer (schützt manuelle Änderungen).
+        if ( null !== $short_name ) {
             $this->set_meta_if_empty( $wp_id, 'sp_abbreviation', $short_name );
         } elseif ( ! get_post_meta( $wp_id, 'sp_abbreviation', true ) ) {
             update_post_meta( $wp_id, 'sp_abbreviation', mb_strtoupper( mb_substr( $team_name, 0, 3 ) ) );
         }
 
-        // v3.5.2: Short name = original teamname (ohne AK/Geschlecht-Suffix)
+        // v3.5.2: Short name = original teamname (ohne AK/Geschlecht-Suffix).
         $this->set_meta_if_empty( $wp_id, 'sp_short_name', $team_name );
 
         if ( $is_own && ! empty( $extra_meta ) ) {
@@ -938,7 +938,7 @@ class BBB_Sync_Engine {
         // sp_url: Nicht setzen – BBB hat keine öffentlichen Team-URLs.
         // Falls ein Trainer manuell eine Vereins-Website einträgt, bleibt diese erhalten.
 
-        // Logo
+        // Logo.
         if ( $club_id ) {
             $logo_id = $this->logo_handler->maybe_sync_logo( $wp_id, $permanent_id, $club_id );
             if ( $logo_id ) {
@@ -946,7 +946,7 @@ class BBB_Sync_Engine {
             }
         }
 
-        // Taxonomies
+        // Taxonomies.
         $league_terms = array_filter( array_map( fn( $lid ) => $league_term_map[ $lid ] ?? null, $liga_ids ) );
         if ( $league_terms ) {
 			wp_set_object_terms( $wp_id, $league_terms, 'sp_league', true );
@@ -981,7 +981,7 @@ class BBB_Sync_Engine {
         // Freilos/Platzhalter/Turnier: Teams mit permanentId=0 oder null
         // - "Freilos1" etc. = Bye, Gegner rückt automatisch weiter (Pokal/KO)
         // - "?" = Turnier-Platzhalter, Gegner steht nach Vorrunde fest
-        // Beide haben permanentId=null in der API → (int) null === 0
+        // Beide haben permanentId=null in der API → (int) null === 0.
         if ( ! $home_permanent_id || ! $away_permanent_id ) {
             $home_name = $match['homeTeam']['teamname'] ?? '?';
             $away_name = $match['guestTeam']['teamname'] ?? '?';
@@ -1042,9 +1042,9 @@ class BBB_Sync_Engine {
         $abgesagt   = $match['abgesagt'] ?? null;
         $result_str = $match['result'] ?? null;
 
-        if ( $abgesagt === true ) {
+        if ( true === $abgesagt ) {
             $post_status = 'draft';
-        } elseif ( $result_str !== null ) {
+        } elseif ( null !== $result_str ) {
             $post_status = 'publish';
         } else {
             $post_status = 'future';
@@ -1069,24 +1069,24 @@ class BBB_Sync_Engine {
             $update_data = [ 'ID' => $existing_id ];
 
             // Titel NIE überschreiben (Spielbericht-Titel, manuelle Änderungen)
-            // Nur bei Adoption (noch kein _bbb_match_id) initial setzen
+            // Nur bei Adoption (noch kein _bbb_match_id) initial setzen.
             if ( ! get_post_meta( $existing_id, '_bbb_match_id', true ) ) {
                 $update_data['post_title'] = $title;
             }
 
-            // Datum aktualisieren (Spielverlegung)
+            // Datum aktualisieren (Spielverlegung).
             $update_data['post_date'] = $datetime;
 
-            // Status nur "upgraden" (future→publish), nie manuellen Status überschreiben
+            // Status nur "upgraden" (future→publish), nie manuellen Status überschreiben.
             $current_status = $current_post->post_status ?? 'publish';
-            if ( $current_status === 'future' && $post_status === 'publish' ) {
+            if ( 'future' === $current_status && 'publish' === $post_status ) {
                 $update_data['post_status'] = 'publish';
-            } elseif ( $current_status === 'future' && $post_status === 'draft' ) {
-                $update_data['post_status'] = 'draft'; // Abgesagt
+            } elseif ( 'future' === $current_status && 'draft' === $post_status ) {
+                $update_data['post_status'] = 'draft'; // Abgesagt.
             }
-            // 'publish' oder manuell gesetzter Status bleibt IMMER erhalten
+            // 'publish' oder manuell gesetzter Status bleibt IMMER erhalten.
 
-            // post_content (Spielbericht) NIE anfassen
+            // post_content (Spielbericht) NIE anfassen.
             wp_update_post( $update_data );
             ++$this->stats['events_updated'];
 
@@ -1107,9 +1107,9 @@ class BBB_Sync_Engine {
             ++$this->stats['events_created'];
         }
 
-        // BBB meta (_bbb_match_id immer setzen = Primary Key)
+        // BBB meta (_bbb_match_id immer setzen = Primary Key).
         update_post_meta( $wp_id, '_bbb_match_id', $match_id );
-        // BBB-interne Meta: Immer aktualisieren (keine User-Daten)
+        // BBB-interne Meta: Immer aktualisieren (keine User-Daten).
         $this->set_meta_if_not_null( $wp_id, '_bbb_liga_id', $liga_id ?: null );
         $this->set_meta_if_not_null( $wp_id, '_bbb_match_day', $match['matchDay'] ?? null );
         $this->set_meta_if_not_null( $wp_id, '_bbb_match_no', $match['matchNo'] ?? null );
@@ -1117,7 +1117,7 @@ class BBB_Sync_Engine {
         $this->set_meta_if_not_null( $wp_id, '_bbb_abgesagt', $match['abgesagt'] ?? null );
         $this->set_meta_if_not_null( $wp_id, '_bbb_ergebnis_bestaetigt', $match['ergebnisbestaetigt'] ?? null );
 
-        // SportsPress Teams
+        // SportsPress Teams.
         delete_post_meta( $wp_id, 'sp_team' );
         add_post_meta( $wp_id, 'sp_team', $home_wp_id );
         add_post_meta( $wp_id, 'sp_team', $away_wp_id );
@@ -1130,10 +1130,10 @@ class BBB_Sync_Engine {
         //
         // Konfigurierte Slugs: z.B. ['t','pts'] → Gesamtergebnis in beide Spalten schreiben.
         // Basketball-typisch: 't' (Total für Teaser) + 'pts' (Event-Editor).
-        $rk        = $this->get_main_result_slug() ?: 'pts'; // Primär-Slug (für sp_main_result)
-        $all_slugs = $this->get_result_slugs();        // Alle konfigurierten Slugs
+        $rk        = $this->get_main_result_slug() ?: 'pts'; // Primär-Slug (für sp_main_result).
+        $all_slugs = $this->get_result_slugs();        // Alle konfigurierten Slugs.
         if ( empty( $all_slugs ) ) {
-			$all_slugs = [ $rk ]; // Fallback: nur Primär-Slug
+			$all_slugs = [ $rk ]; // Fallback: nur Primär-Slug.
         }
 
         $existing_results     = get_post_meta( $wp_id, 'sp_results', true );
@@ -1144,10 +1144,10 @@ class BBB_Sync_Engine {
 					continue;
                 }
                 foreach ( $data as $k => $v ) {
-                    if ( $k === 'outcome' ) {
+                    if ( 'outcome' === $k ) {
 						continue;
                     }
-                    if ( $v !== '' && $v !== '0' && $v !== null ) {
+                    if ( '' !== $v && '0' !== $v && null !== $v ) {
                         $has_existing_results = true;
                         break 2;
                     }
@@ -1155,14 +1155,14 @@ class BBB_Sync_Engine {
             }
         }
 
-        if ( $result_str !== null && str_contains( (string) $result_str, ':' ) ) {
-            // API hat Ergebnis → nur schreiben wenn noch kein Ergebnis vorhanden
+        if ( null !== $result_str && str_contains( (string) $result_str, ':' ) ) {
+            // API hat Ergebnis → nur schreiben wenn noch kein Ergebnis vorhanden.
             if ( ! $has_existing_results ) {
                 $parts      = explode( ':', $result_str );
                 $home_score = (int) $parts[0];
                 $away_score = (int) $parts[1];
 
-                // Ergebnis in ALLE konfigurierten Slugs schreiben
+                // Ergebnis in ALLE konfigurierten Slugs schreiben.
                 $home_data = [ 'outcome' => [ $home_score > $away_score ? 'win' : ( $home_score < $away_score ? 'loss' : 'draw' ) ] ];
                 $away_data = [ 'outcome' => [ $away_score > $home_score ? 'win' : ( $away_score < $home_score ? 'loss' : 'draw' ) ] ];
                 foreach ( $all_slugs as $slug ) {
@@ -1179,7 +1179,7 @@ class BBB_Sync_Engine {
                 update_post_meta( $wp_id, 'sp_main_result', $rk );
             }
         } elseif ( ! $is_update && empty( $existing_results ) ) {
-            // Kein API-Ergebnis → Leere Struktur nur bei Neuanlage
+            // Kein API-Ergebnis → Leere Struktur nur bei Neuanlage.
             $home_data = [ 'outcome' => [] ];
             $away_data = [ 'outcome' => [] ];
             foreach ( $all_slugs as $slug ) {
@@ -1196,13 +1196,13 @@ class BBB_Sync_Engine {
             );
         }
 
-        // sp_main_result IMMER setzen (auch bei Update, falls fehlend)
+        // sp_main_result IMMER setzen (auch bei Update, falls fehlend).
         $current_main = get_post_meta( $wp_id, 'sp_main_result', true );
         if ( ! $current_main ) {
             update_post_meta( $wp_id, 'sp_main_result', $rk );
         }
 
-        // Taxonomies
+        // Taxonomies.
         $league_term = $league_term_map[ $liga_id ] ?? null;
         if ( $league_term ) {
 			wp_set_object_terms( $wp_id, $league_term, 'sp_league', false );
@@ -1213,12 +1213,12 @@ class BBB_Sync_Engine {
 			wp_set_object_terms( $wp_id, $season_term, 'sp_season', false );
         }
 
-        // Player-Sync + Venue
+        // Player-Sync + Venue.
         $players_enabled = (bool) get_option( 'bbb_sync_players_enabled', false );
         $boxscore_data   = null;
 
-        if ( $result_str !== null && $players_enabled ) {
-            // Nur eigene Spieler? → Eigene Team-IDs als Filter übergeben
+        if ( null !== $result_str && $players_enabled ) {
+            // Nur eigene Spieler? → Eigene Team-IDs als Filter übergeben.
             $own_pids = [];
             if ( (bool) get_option( 'bbb_sync_players_own_only', true ) ) {
                 $own_pids = array_map( 'intval', get_option( 'bbb_sync_own_teams', [] ) );
@@ -1231,7 +1231,7 @@ class BBB_Sync_Engine {
             }
             $boxscore_data = $player_stats['boxscore_data'] ?? null;
 
-            // Spielerlisten für eigene Teams
+            // Spielerlisten für eigene Teams.
             $season_term_id = $season_term_map[ $season_name ] ?? null;
             $league_term_id = $league_term_map[ $liga_id ] ?? null;
             if ( $season_term_id ) {
@@ -1270,7 +1270,7 @@ class BBB_Sync_Engine {
             }
         }
 
-        // v3.5.0: Venue-Sync (immer, auch ohne Player-Sync)
+        // v3.5.0: Venue-Sync (immer, auch ohne Player-Sync).
         $this->maybe_sync_venue( $match, $wp_id, $boxscore_data );
     }
 
@@ -1354,7 +1354,7 @@ class BBB_Sync_Engine {
             return;
         }
 
-        // ligaData in jedes Match injizieren (Spielplan hat es nur auf Top-Level)
+        // ligaData in jedes Match injizieren (Spielplan hat es nur auf Top-Level).
         foreach ( $matches as &$match ) {
             if ( ! isset( $match['ligaData'] ) ) {
                 $match['ligaData'] = $liga_data;
@@ -1362,7 +1362,7 @@ class BBB_Sync_Engine {
         }
         unset( $match );
 
-        // Zähle nur Matches die noch nicht als sp_event existieren
+        // Zähle nur Matches die noch nicht als sp_event existieren.
         $new_matches = 0;
         foreach ( $matches as $m ) {
             $mid = (int) ( $m['matchId'] ?? 0 );
@@ -1380,7 +1380,7 @@ class BBB_Sync_Engine {
             )
         );
 
-        // Teams + Leagues/Seasons aus Spielplan-Matches erstellen
+        // Teams + Leagues/Seasons aus Spielplan-Matches erstellen.
         $club_id = (int) get_option( 'bbb_sync_club_id', 0 );
 
         $league_term_map = [];
@@ -1392,10 +1392,10 @@ class BBB_Sync_Engine {
             $season_term_map[ $season_name ] = $this->ensure_sp_season( $liga_data );
         }
 
-        // Teams aus allen Matches der Liga synken
+        // Teams aus allen Matches der Liga synken.
         $team_wp_map = $this->sync_teams_from_matches( $matches, $club_id, [], $league_term_map, $season_term_map );
 
-        // Events synken (bestehende werden nur aktualisiert)
+        // Events synken (bestehende werden nur aktualisiert).
         $synced = 0;
         foreach ( $matches as $match ) {
             $this->sync_event( $match, $team_wp_map, $league_term_map, $season_term_map );
@@ -1433,7 +1433,7 @@ class BBB_Sync_Engine {
                     $sk_name ? ", Typ: {$sk_name}" : ''
                 )
             );
-            // Bracket-Cache invalidieren damit Shortcode aktuelle Daten zeigt
+            // Bracket-Cache invalidieren damit Shortcode aktuelle Daten zeigt.
             BBB_Tournament_Bracket::invalidate_cache( $liga_id );
         }
     }
@@ -1471,7 +1471,7 @@ class BBB_Sync_Engine {
         ];
 
         if ( $existing_id ) {
-            // UPDATE: Titel NIE überschreiben
+            // UPDATE: Titel NIE überschreiben.
             $wp_id = $existing_id;
             ++$this->stats['tables_updated'];
         } else {
@@ -1486,22 +1486,22 @@ class BBB_Sync_Engine {
             $this->log( "Tabelle erstellt: '{$liga_name}' (SP #{$wp_id})" );
         }
 
-        // Meta
+        // Meta.
         update_post_meta( $wp_id, '_bbb_liga_id', $liga_id );
 
-        // Teams zuweisen (sp_team Meta, mehrfach)
+        // Teams zuweisen (sp_team Meta, mehrfach).
         delete_post_meta( $wp_id, 'sp_team' );
         foreach ( $team_wp_map as $team_wp_id ) {
             add_post_meta( $wp_id, 'sp_team', $team_wp_id );
         }
 
-        // Taxonomien
+        // Taxonomien.
         wp_set_object_terms( $wp_id, $league_term_id, 'sp_league', false );
         if ( $season_term_id ) {
             wp_set_object_terms( $wp_id, $season_term_id, 'sp_season', false );
         }
 
-        // SportsPress-Konfiguration für Basketball
+        // SportsPress-Konfiguration für Basketball.
         $rk = $this->get_main_result_slug() ?: 'pts';
         update_post_meta( $wp_id, 'sp_main_result', $rk );
     }
@@ -1541,7 +1541,7 @@ class BBB_Sync_Engine {
         $match_id   = (int) ( $match['matchId'] ?? 0 );
         $result_str = $match['result'] ?? null;
 
-        // Auch Venue für zukünftige Spiele setzen (aus match-Daten)
+        // Auch Venue für zukünftige Spiele setzen (aus match-Daten).
         if ( ! $match_id ) {
 			return;
         }
@@ -1549,25 +1549,25 @@ class BBB_Sync_Engine {
         // Bereits Venue mit Adresse zugewiesen?
         $existing_venues = wp_get_object_terms( $event_wp_id, 'sp_venue', [ 'fields' => 'ids' ] );
         if ( ! empty( $existing_venues ) && ! is_wp_error( $existing_venues ) ) {
-            // SportsPress speichert Venue-Meta als Option "taxonomy_{term_id}"
+            // SportsPress speichert Venue-Meta als Option "taxonomy_{term_id}".
             $venue_option     = get_option( "taxonomy_{$existing_venues[0]}", [] );
             $existing_address = $venue_option['sp_address'] ?? '';
             if ( ! empty( $existing_address ) ) {
-                return; // Venue + Adresse vorhanden → fertig
+                return; // Venue + Adresse vorhanden → fertig.
             }
         }
 
         $spielfeld = null;
 
-        // Prio 1: Boxscore matchInfo (falls vorhanden)
+        // Prio 1: Boxscore matchInfo (falls vorhanden).
         if ( $boxscore_data && isset( $boxscore_data['matchInfo']['spielfeld'] ) ) {
             $spielfeld = $boxscore_data['matchInfo']['spielfeld'];
         }
 
-        // Prio 2: matchInfo-Endpoint (immer als Fallback)
+        // Prio 2: matchInfo-Endpoint (immer als Fallback).
         if ( ! $spielfeld || empty( $spielfeld['id'] ) ) {
-            // Nur für beendete Spiele matchInfo laden (API-Call sparen)
-            if ( $result_str === null ) {
+            // Nur für beendete Spiele matchInfo laden (API-Call sparen).
+            if ( null === $result_str ) {
 				return;
             }
 
@@ -1580,19 +1580,19 @@ class BBB_Sync_Engine {
             }
             $this->api->throttle();
 
-            // v3.5.0: Dual-Format Support
+            // v3.5.0: Dual-Format Support.
             if ( isset( $match_info['matchInfo']['spielfeld'] ) ) {
-                // Format A: Höhere Ligen → Spielfeld-Objekt mit Adresse
+                // Format A: Höhere Ligen → Spielfeld-Objekt mit Adresse.
                 $spielfeld = $match_info['matchInfo']['spielfeld'];
             } elseif ( isset( $match_info['spielfeld'] ) && is_array( $match_info['spielfeld'] ) ) {
-                // Format A alt: spielfeld direkt in data
+                // Format A alt: spielfeld direkt in data.
                 $spielfeld = $match_info['spielfeld'];
             } elseif ( ! empty( $match_info['ort'] ) ) {
-                // Format B: Mini-Liga → nur "ort" als String (keine Adresse)
+                // Format B: Mini-Liga → nur "ort" als String (keine Adresse).
                 $spielfeld = [
-                    'id'          => abs( crc32( $match_info['ort'] ) ), // Deterministisch
+                    'id'          => abs( crc32( $match_info['ort'] ) ), // Deterministisch.
                     'bezeichnung' => $match_info['ort'],
-                    // Keine strasse/plz/ort → Mini-Liga hat keine strukturierten Adressdaten
+                    // Keine strasse/plz/ort → Mini-Liga hat keine strukturierten Adressdaten.
                 ];
             }
         }
@@ -1627,7 +1627,7 @@ class BBB_Sync_Engine {
             $this->log( "Venue: '{$venue_name}' (BBB #{$spielfeld_id})" . ( $address ? " → {$address}" : ' (Mini-Liga, ohne Adresse)' ) );
         } else {
             // Update: Name NIE überschreiben (manuelle Änderungen schützen)
-            // Adresse ggf. nachträglich ergänzen
+            // Adresse ggf. nachträglich ergänzen.
             if ( $address ) {
                 $venue_option = get_option( "taxonomy_{$venue_term_id}", [] );
                 $old_addr     = $venue_option['sp_address'] ?? '';
@@ -1638,14 +1638,14 @@ class BBB_Sync_Engine {
                         $this->log( "Venue-Adresse nachgetragen: '{$venue_name}' → {$address}" );
                     }
                 } else {
-                    // Adresse unverändert, aber ggf. Geocoding nachholen
+                    // Adresse unverändert, aber ggf. Geocoding nachholen.
                     $this->maybe_geocode_venue( $venue_term_id, $spielfeld );
                 }
             }
             ++$this->stats['venues_updated'];
         }
 
-        // Venue zum Event zuweisen
+        // Venue zum Event zuweisen.
         wp_set_object_terms( $event_wp_id, $venue_term_id, 'sp_venue', false );
     }
 
@@ -1732,7 +1732,7 @@ class BBB_Sync_Engine {
 			]
         );
 
-        // Rate Limit respektieren
+        // Rate Limit respektieren.
         $this->api->throttle();
 
         if ( is_wp_error( $response ) ) {
@@ -1741,14 +1741,14 @@ class BBB_Sync_Engine {
         }
 
         $code = wp_remote_retrieve_response_code( $response );
-        if ( $code !== 200 ) {
+        if ( 200 !== $code ) {
             $this->log( "Geocoding HTTP {$code}", 'error' );
             return null;
         }
 
         $data = json_decode( wp_remote_retrieve_body( $response ), true );
         if ( empty( $data[0]['lat'] ) || empty( $data[0]['lon'] ) ) {
-            // Fallback: Nur PLZ + Ort (ohne Straße) probieren
+            // Fallback: Nur PLZ + Ort (ohne Straße) probieren.
             if ( $strasse && ( $plz || $ort ) ) {
                 $this->log( "Geocoding: Straße nicht gefunden, Fallback auf PLZ/Ort: {$plz} {$ort}" );
                 return $this->geocode_address( '', $plz, $ort );
@@ -1815,13 +1815,13 @@ class BBB_Sync_Engine {
 
         $migrated = 0;
         foreach ( $terms as $term ) {
-            // Alte Adresse aus term_meta lesen
+            // Alte Adresse aus term_meta lesen.
             $addr_from_termmeta = get_term_meta( $term->term_id, 'sp_address', true );
             if ( empty( $addr_from_termmeta ) ) {
 				continue;
             }
 
-            // In SportsPress-Format (Option) schreiben
+            // In SportsPress-Format (Option) schreiben.
             $option_key = "taxonomy_{$term->term_id}";
             $meta       = get_option( $option_key, [] );
             if ( ! is_array( $meta ) ) {
@@ -1834,7 +1834,7 @@ class BBB_Sync_Engine {
                 ++$migrated;
             }
 
-            // Altes term_meta aufräumen
+            // Altes term_meta aufräumen.
             delete_term_meta( $term->term_id, 'sp_address' );
         }
 
@@ -1854,7 +1854,7 @@ class BBB_Sync_Engine {
 			return;
         }
 
-        // sp_team + sp_event: Alle mit _bbb_* Meta
+        // sp_team + sp_event: Alle mit _bbb_* Meta.
         $meta_keys_by_type = [
             'sp_team'   => '_bbb_team_permanent_id',
             'sp_event'  => '_bbb_match_id',
@@ -1884,7 +1884,7 @@ class BBB_Sync_Engine {
             $this->log( "v3.5.3 Migration: {$total} Posts auf Sync-User 'basketball-bund.net' umgestellt" );
         }
 
-        // Ungültige Team-URLs entfernen (basketball-bund.net/team/id/... sind nicht öffentlich)
+        // Ungültige Team-URLs entfernen (basketball-bund.net/team/id/... sind nicht öffentlich).
         $cleaned = $wpdb->query(
             "DELETE FROM {$wpdb->postmeta}
              WHERE meta_key = 'sp_url'
@@ -1899,7 +1899,7 @@ class BBB_Sync_Engine {
      * v3.5.0: Venue-Adressen resettet → erzwingt Neuladen aus matchInfo
      */
     private function reset_venue_addresses(): void {
-        // Lösche alle leeren sp_address Meta (erzwingt Neuladen)
+        // Lösche alle leeren sp_address Meta (erzwingt Neuladen).
         $terms = get_terms(
             [
 				'taxonomy'     => 'sp_venue',
@@ -1918,7 +1918,7 @@ class BBB_Sync_Engine {
             $addr         = $venue_option['sp_address'] ?? '';
             if ( empty( $addr ) ) {
                 // Venue von allen Events entfernen → erzwingt Re-Zuweisung
-                // (Venue bleibt erhalten, wird beim nächsten Sync mit Adresse aktualisiert)
+                // (Venue bleibt erhalten, wird beim nächsten Sync mit Adresse aktualisiert).
                 ++$count;
             }
         }
@@ -1935,7 +1935,7 @@ class BBB_Sync_Engine {
         if ( ! $permanent_id ) {
 			return false;
         }
-        // v3.5.0: Direkte DB-Query statt WP_Query (umgeht Object Cache)
+        // v3.5.0: Direkte DB-Query statt WP_Query (umgeht Object Cache).
         global $wpdb;
         $id = $wpdb->get_var(
             $wpdb->prepare(
@@ -2012,7 +2012,7 @@ class BBB_Sync_Engine {
     }
 
     private function find_sp_event_by_date_and_teams( string $datetime, int $home_wp_id, int $away_wp_id ): int|false {
-        $date  = date( 'Y-m-d', strtotime( $datetime ) );
+        $date  = gmdate( 'Y-m-d', strtotime( $datetime ) );
         $query = new WP_Query(
             [
 				'post_type'      => 'sp_event',
@@ -2020,8 +2020,8 @@ class BBB_Sync_Engine {
 				'posts_per_page' => -1,
 				'date_query'     => [
 					[
-						'after'     => date( 'Y-m-d', strtotime( "$date -1 day" ) ),
-						'before'    => date( 'Y-m-d', strtotime( "$date +1 day" ) ),
+						'after'     => gmdate( 'Y-m-d', strtotime( "$date -1 day" ) ),
+						'before'    => gmdate( 'Y-m-d', strtotime( "$date +1 day" ) ),
 						'inclusive' => true,
 					],
 				],
@@ -2078,7 +2078,7 @@ class BBB_Sync_Engine {
 			return false;
         }
 
-        // v3.5.1: akName + geschlecht direkt aus ligaData (immer vorhanden)
+        // v3.5.1: akName + geschlecht direkt aus ligaData (immer vorhanden).
         update_term_meta( $result['term_id'], '_bbb_liga_id', $bbb_liga_id );
         update_term_meta( $result['term_id'], '_bbb_ak_name', $liga_data['akName'] ?? '' );
         update_term_meta( $result['term_id'], '_bbb_geschlecht', $liga_data['geschlecht'] ?? '' );
@@ -2086,7 +2086,7 @@ class BBB_Sync_Engine {
     }
 
     private function ensure_sp_season( array $liga_data ): int|false {
-        $season_name = $liga_data['seasonName'] ?? ( ( $liga_data['seasonId'] ?? date( 'Y' ) ) . '/' . ( ( $liga_data['seasonId'] ?? date( 'Y' ) ) + 1 ) );
+        $season_name = $liga_data['seasonName'] ?? ( ( $liga_data['seasonId'] ?? gmdate( 'Y' ) ) . '/' . ( ( $liga_data['seasonId'] ?? gmdate( 'Y' ) ) + 1 ) );
         $season_slug = sanitize_title( $season_name );
         $term        = get_term_by( 'slug', $season_slug, 'sp_season' );
         if ( $term ) {
@@ -2108,7 +2108,7 @@ class BBB_Sync_Engine {
      * Diese Methode nutzt die Einstellungen oder findet den Slug automatisch.
      */
     private function get_main_result_slug(): ?string {
-        if ( self::$main_result_slug !== null ) {
+        if ( null !== self::$main_result_slug ) {
 			return self::$main_result_slug;
         }
 
@@ -2158,7 +2158,7 @@ class BBB_Sync_Engine {
      * @return string[] Array von Slugs, leer wenn nichts konfiguriert
      */
     public function get_result_slugs(): array {
-        if ( self::$result_slugs_cache !== null ) {
+        if ( null !== self::$result_slugs_cache ) {
 			return self::$result_slugs_cache;
         }
 
@@ -2169,7 +2169,7 @@ class BBB_Sync_Engine {
     }
 
     private function set_meta_if_not_null( int $post_id, string $key, mixed $value ): void {
-        if ( $value !== null ) {
+        if ( null !== $value ) {
 			update_post_meta( $post_id, $key, $value );
         }
     }
@@ -2179,11 +2179,11 @@ class BBB_Sync_Engine {
      * Schützt manuell eingetragene Daten vor Überschreibung durch den Sync.
      */
     private function set_meta_if_empty( int $post_id, string $key, mixed $value ): void {
-        if ( $value === null || $value === '' || $value === 0 ) {
+        if ( null === $value || '' === $value || 0 === $value ) {
 			return;
         }
         $existing = get_post_meta( $post_id, $key, true );
-        if ( $existing !== '' && $existing !== '0' && $existing !== false ) {
+        if ( '' !== $existing && '0' !== $existing && false !== $existing ) {
 			return;
         }
         update_post_meta( $post_id, $key, $value );
@@ -2194,7 +2194,7 @@ class BBB_Sync_Engine {
      * Kombiniert set_meta_if_not_null + set_meta_if_empty.
      */
     private function set_meta_safe( int $post_id, string $key, mixed $value, bool $is_update ): void {
-        if ( $value === null ) {
+        if ( null === $value ) {
 			return;
         }
         if ( $is_update ) {

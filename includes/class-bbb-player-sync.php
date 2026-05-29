@@ -107,7 +107,7 @@ class BBB_Player_Sync {
 
         $match_boxscore = $boxscore_data['matchBoxscore'] ?? null;
 
-        if ( $match_boxscore === null ) {
+        if ( null === $match_boxscore ) {
             $this->log( "Kein Boxscore für Match {$match_id} (vermutlich Mini-Liga)" );
             update_post_meta( $event_wp_id, '_bbb_boxscore_synced', 'no_data' );
             $stats                  = $this->get_stats();
@@ -131,10 +131,10 @@ class BBB_Player_Sync {
 			],
         ];
 
-        // Event-Performance: team_wp_id => [ player_wp_id => [ slug => value ] ]
+        // Event-Performance: team_wp_id => [ player_wp_id => [ slug => value ] ].
         $event_performance = [];
 
-        // v3.5.0: Debug-Flags
+        // v3.5.0: Debug-Flags.
         $stat_keys_logged    = false;
         $mapped_stats_logged = false;
         $raw_stats_logged    = false;
@@ -142,7 +142,7 @@ class BBB_Player_Sync {
         foreach ( $sides as $side ) {
             $pid = $side['permanent_id'];
 
-            // Filter: Nur eigene Teams synchen wenn $own_permanent_ids gesetzt
+            // Filter: Nur eigene Teams synchen wenn $own_permanent_ids gesetzt.
             if ( ! empty( $own_permanent_ids ) && ! in_array( $pid, $own_permanent_ids, true ) ) {
                 continue;
             }
@@ -157,14 +157,14 @@ class BBB_Player_Sync {
             }
 
             foreach ( $side['stats'] as $player_stat ) {
-                // v3.5.0: Debug - Rohe Stat-Keys UND Werte loggen (einmalig)
+                // v3.5.0: Debug - Rohe Stat-Keys UND Werte loggen (einmalig).
                 if ( ! $stat_keys_logged ) {
                     $keys = array_keys( $player_stat );
                     $this->log( 'Boxscore Stat-Keys: [' . implode( ', ', $keys ) . ']' );
                     $stat_keys_logged = true;
                 }
                 if ( ! $raw_stats_logged ) {
-                    // Nur die relevanten Felder loggen (nicht das ganze Objekt)
+                    // Nur die relevanten Felder loggen (nicht das ganze Objekt).
                     $debug_fields = [];
                     foreach ( array_keys( self::STAT_ALIASES ) as $k ) {
                         if ( isset( $player_stat[ $k ] ) ) {
@@ -222,7 +222,7 @@ class BBB_Player_Sync {
      * Resolve BBB stat key to actual SportsPress performance slug.
      */
     private function resolve_sp_slug( array $aliases ): ?string {
-        if ( $this->resolved_slugs === null ) {
+        if ( null === $this->resolved_slugs ) {
             $this->resolved_slugs = [];
             $query                = new WP_Query(
                 [
@@ -257,7 +257,7 @@ class BBB_Player_Sync {
      * Leer = Fallback auf STAT_ALIASES (Abwärtskompatibel).
      */
     private function get_configured_mapping(): array {
-        if ( $this->configured_mapping !== null ) {
+        if ( null !== $this->configured_mapping ) {
 			return $this->configured_mapping;
         }
         $raw                      = get_option( 'bbb_sync_stat_mapping', '' );
@@ -281,18 +281,18 @@ class BBB_Player_Sync {
         if ( ! empty( $config ) ) {
             // ━━━ Konfiguriertes 1:1 Mapping ━━━
 
-            // Einfache Felder
+            // Einfache Felder.
             foreach ( [ 'pts', 'ro', 'rd', 'rt', 'as', 'st', 'to', 'bs', 'fouls', 'eff', 'esz' ] as $bbb_key ) {
                 $sp_slug = $config[ $bbb_key ] ?? null;
-                if ( $sp_slug && array_key_exists( $bbb_key, $player_stat ) && $player_stat[ $bbb_key ] !== null ) {
+                if ( $sp_slug && array_key_exists( $bbb_key, $player_stat ) && null !== $player_stat[ $bbb_key ] ) {
                     $mapped[ $sp_slug ] = (string) (int) $player_stat[ $bbb_key ];
                 }
             }
 
-            // Nested Felder (made/attempted)
+            // Nested Felder (made/attempted).
             $nested = [
                 'wt'          => 'wt',
-                'twoPoints'   => 'twopoints',   // API-Key => Config-Key (lowercase)
+                'twoPoints'   => 'twopoints',   // API-Key => Config-Key (lowercase).
                 'threePoints' => 'threepoints',
                 'onePoints'   => 'onepoints',
             ];
@@ -303,11 +303,11 @@ class BBB_Player_Sync {
                 }
 
                 $made_slug = $config[ "{$config_prefix}.made" ] ?? null;
-                if ( $made_slug && array_key_exists( 'made', $parent ) && $parent['made'] !== null ) {
+                if ( $made_slug && array_key_exists( 'made', $parent ) && null !== $parent['made'] ) {
                     $mapped[ $made_slug ] = (string) (int) $parent['made'];
                 }
                 $att_slug = $config[ "{$config_prefix}.attempted" ] ?? null;
-                if ( $att_slug && array_key_exists( 'attempted', $parent ) && $parent['attempted'] !== null ) {
+                if ( $att_slug && array_key_exists( 'attempted', $parent ) && null !== $parent['attempted'] ) {
                     $mapped[ $att_slug ] = (string) (int) $parent['attempted'];
                 }
             }
@@ -315,7 +315,7 @@ class BBB_Player_Sync {
             // ━━━ Fallback: Alias-basiertes Mapping (Legacy) ━━━
 
             foreach ( self::STAT_ALIASES as $bbb_key => $aliases ) {
-                if ( array_key_exists( $bbb_key, $player_stat ) && $player_stat[ $bbb_key ] !== null ) {
+                if ( array_key_exists( $bbb_key, $player_stat ) && null !== $player_stat[ $bbb_key ] ) {
                     $sp_slug = $this->resolve_sp_slug( $aliases );
                     if ( $sp_slug ) {
                         $mapped[ $sp_slug ] = (string) (int) $player_stat[ $bbb_key ];
@@ -329,13 +329,13 @@ class BBB_Player_Sync {
 					continue;
                 }
 
-                if ( array_key_exists( 'made', $parent ) && $parent['made'] !== null ) {
+                if ( array_key_exists( 'made', $parent ) && null !== $parent['made'] ) {
                     $sp_slug = $this->resolve_sp_slug( $made_aliases );
                     if ( $sp_slug ) {
 						$mapped[ $sp_slug ] = (string) (int) $parent['made'];
                     }
                 }
-                if ( array_key_exists( 'attempted', $parent ) && $parent['attempted'] !== null ) {
+                if ( array_key_exists( 'attempted', $parent ) && null !== $parent['attempted'] ) {
                     $sp_slug = $this->resolve_sp_slug( $attempted_aliases );
                     if ( $sp_slug ) {
 						$mapped[ $sp_slug ] = (string) (int) $parent['attempted'];
@@ -353,7 +353,7 @@ class BBB_Player_Sync {
      * Format: [ team_wp_id => [ player_wp_id => [ slug => value ], 0 => [] ] ]
      */
     private function write_event_performance( int $event_wp_id, array $performance ): void {
-        // Bestehende sp_players laden – manuell eingetragene Stats schützen
+        // Bestehende sp_players laden – manuell eingetragene Stats schützen.
         $sp_players = get_post_meta( $event_wp_id, 'sp_players', true );
         if ( ! is_array( $sp_players ) ) {
 			$sp_players = [];
@@ -366,27 +366,27 @@ class BBB_Player_Sync {
                 $sp_players[ $team_wp_id ] = [];
             }
             foreach ( $players as $player_wp_id => $stats ) {
-                // Bestehende Stats für diesen Spieler laden
+                // Bestehende Stats für diesen Spieler laden.
                 $existing_stats = $sp_players[ $team_wp_id ][ $player_wp_id ] ?? [];
 
-                // Nur leere/fehlende Felder füllen, manuell Eingetragenes behalten
+                // Nur leere/fehlende Felder füllen, manuell Eingetragenes behalten.
                 foreach ( $stats as $slug => $value ) {
                     $existing_val = $existing_stats[ $slug ] ?? '';
-                    if ( $existing_val === '' || $existing_val === '0' || $existing_val === null ) {
+                    if ( '' === $existing_val || '0' === $existing_val || null === $existing_val ) {
                         $existing_stats[ $slug ] = $value;
                     }
                 }
                 $sp_players[ $team_wp_id ][ $player_wp_id ] = $existing_stats;
                 ++$total;
 
-                // v3.5.0: Spieler auch als sp_player zum Event hinzufügen
+                // v3.5.0: Spieler auch als sp_player zum Event hinzufügen.
                 $existing_event_players = get_post_meta( $event_wp_id, 'sp_player' );
                 if ( ! in_array( (string) $player_wp_id, $existing_event_players, true )
                     && ! in_array( $player_wp_id, $existing_event_players, true ) ) {
                     add_post_meta( $event_wp_id, 'sp_player', $player_wp_id );
                 }
             }
-            // Team-Totals (SP berechnet automatisch) – nur anlegen wenn nicht vorhanden
+            // Team-Totals (SP berechnet automatisch) – nur anlegen wenn nicht vorhanden.
             if ( ! isset( $sp_players[ $team_wp_id ][0] ) ) {
                 $sp_players[ $team_wp_id ][0] = [];
             }
@@ -404,7 +404,7 @@ class BBB_Player_Sync {
         $person    = $player_data['person'] ?? [];
         $anonym    = ( $player_data['anonym'] ?? false ) || ( $person['anonym'] ?? false );
 
-        if ( $player_id === 0 || $anonym === true ) {
+        if ( 0 === $player_id || true === $anonym ) {
             ++$this->players_skipped;
             return null;
         }
@@ -413,7 +413,7 @@ class BBB_Player_Sync {
         $nachname  = $person['nachname'] ?? '';
         $full_name = trim( "{$vorname} {$nachname}" );
 
-        if ( empty( $full_name ) || $full_name === '*** ****' ) {
+        if ( empty( $full_name ) || '*** ****' === $full_name ) {
             ++$this->players_skipped;
             return null;
         }
@@ -421,7 +421,7 @@ class BBB_Player_Sync {
         $jersey_no = $player_data['no'] ?? '';
         $person_id = (int) ( $person['id'] ?? 0 );
 
-        // Find existing: person_id (unique) → Name-Fallback
+        // Find existing: person_id (unique) → Name-Fallback.
         $existing_id = null;
 
         // 1. Person-ID (unique über alle Teams – primärer Lookup)
@@ -442,7 +442,7 @@ class BBB_Player_Sync {
         if ( $is_update ) {
             // ═══ UPDATE: Titel + Content NIE überschreiben ═══
             $wp_id = $existing_id;
-            // Spieler-Titel nur bei Adoption (noch keine _bbb_person_id) setzen
+            // Spieler-Titel nur bei Adoption (noch keine _bbb_person_id) setzen.
             if ( ! get_post_meta( $existing_id, '_bbb_person_id', true ) ) {
                 wp_update_post(
                     [
@@ -469,25 +469,25 @@ class BBB_Player_Sync {
             ++$this->players_created;
         }
 
-        // BBB-interne Meta (Primary Keys – immer aktualisieren)
+        // BBB-interne Meta (Primary Keys – immer aktualisieren).
         if ( $person_id ) {
 			update_post_meta( $wp_id, '_bbb_person_id', $person_id );
         }
         update_post_meta( $wp_id, '_bbb_player_id', $player_id );
 
-        // SP-Felder: Nur setzen wenn leer (schützt manuelle Änderungen)
-        if ( $jersey_no !== '' && $jersey_no !== '**' && $jersey_no !== '0' ) {
+        // SP-Felder: Nur setzen wenn leer (schützt manuelle Änderungen).
+        if ( '' !== $jersey_no && '**' !== $jersey_no && '0' !== $jersey_no ) {
             $existing_number = get_post_meta( $wp_id, 'sp_number', true );
-            if ( $existing_number === '' || $existing_number === false ) {
+            if ( '' === $existing_number || false === $existing_number ) {
                 update_post_meta( $wp_id, 'sp_number', $jersey_no );
             }
         }
 
-        // v3.5.0: Team-Zuordnung robust setzen
-        // SportsPress nutzt 'sp_team' als MULTIPLE post_meta (nicht Taxonomy!)
+        // v3.5.0: Team-Zuordnung robust setzen.
+        // SportsPress nutzt 'sp_team' als MULTIPLE post_meta (nicht Taxonomy!).
         update_post_meta( $wp_id, 'sp_current_team', $team_wp_id );
 
-        // sp_team: prüfe ob schon zugewiesen (direkte DB-Query)
+        // sp_team: prüfe ob schon zugewiesen (direkte DB-Query).
         global $wpdb;
         $already_assigned = $wpdb->get_var(
             $wpdb->prepare(
@@ -501,8 +501,8 @@ class BBB_Player_Sync {
             add_post_meta( $wp_id, 'sp_team', $team_wp_id );
         }
 
-        // v3.5.0: Auch sp_past_team setzen (SportsPress zeigt damit die Team-Dropdown-Zuordnung)
-        // Taxonomien vom Event übernehmen
+        // v3.5.0: Auch sp_past_team setzen (SportsPress zeigt damit die Team-Dropdown-Zuordnung).
+        // Taxonomien vom Event übernehmen.
         $event_leagues = wp_get_object_terms( $event_wp_id, 'sp_league', [ 'fields' => 'ids' ] );
         if ( ! is_wp_error( $event_leagues ) && ! empty( $event_leagues ) ) {
             wp_set_object_terms( $wp_id, $event_leagues, 'sp_league', true );
@@ -519,7 +519,7 @@ class BBB_Player_Sync {
      * Ensure player list exists for team + season.
      */
     public function ensure_player_list( int $team_wp_id, int $season_term_id, int $league_term_id ): int|false {
-        // v3.5.0: Direkte DB-Query statt WP_Query (Cache-Problem)
+        // v3.5.0: Direkte DB-Query statt WP_Query (Cache-Problem).
         global $wpdb;
         $existing = $wpdb->get_var(
             $wpdb->prepare(

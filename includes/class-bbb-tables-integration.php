@@ -16,22 +16,22 @@ defined( 'ABSPATH' ) || exit;
 class BBB_Tables_Integration {
 
     public function __construct() {
-        // Team-Logo: SP Featured Image
+        // Team-Logo: SP Featured Image.
         add_filter( 'bbb_table_team_logo_url', [ $this, 'team_logo_url' ], 10, 2 );
 
-        // Team-Link: SP Team Permalink
+        // Team-Link: SP Team Permalink.
         add_filter( 'bbb_table_team_url', [ $this, 'team_url' ], 10, 2 );
 
-        // Event-Link: SP Event Permalink
+        // Event-Link: SP Event Permalink.
         add_filter( 'bbb_table_event_url', [ $this, 'event_url' ], 10, 2 );
 
-        // Theme-Farben: SportsPress/Themeboy
+        // Theme-Farben: SportsPress/Themeboy.
         add_filter( 'bbb_table_theme_colors', [ $this, 'theme_colors' ] );
 
-        // Eigene Team-IDs: aus SP-Team-Posts
+        // Eigene Team-IDs: aus SP-Team-Posts.
         add_filter( 'bbb_table_own_team_ids', [ $this, 'own_team_ids' ], 10, 2 );
 
-        // Liga-Optionen: sp_league Taxonomy
+        // Liga-Optionen: sp_league Taxonomy.
         add_filter( 'bbb_table_liga_options', [ $this, 'liga_options' ], 10, 2 );
     }
 
@@ -87,7 +87,7 @@ class BBB_Tables_Integration {
      * Theme-Farben aus SportsPress/Themeboy.
      */
     public function theme_colors( array $colors ): array {
-        // Goodlayers Theme Options (höchste Prio)
+        // Goodlayers Theme Options (höchste Prio).
         if ( function_exists( 'gdlr_core_get_option' ) ) {
             $gdlr = gdlr_core_get_option( 'button_background_color' );
             if ( $gdlr ) {
@@ -99,7 +99,7 @@ class BBB_Tables_Integration {
             }
         }
 
-        // SportsPress Frontend CSS Colors
+        // SportsPress Frontend CSS Colors.
         $sp = array_filter( (array) get_option( 'sportspress_frontend_css_colors', [] ) );
         if ( ! empty( $sp['primary'] ) ) {
 			$colors['primary'] = $sp['primary'];
@@ -111,7 +111,7 @@ class BBB_Tables_Integration {
 			$colors['heading'] = $sp['heading'];
         }
 
-        // Themeboy Fallback
+        // Themeboy Fallback.
         $tb = array_filter( (array) get_option( 'themeboy', [] ) );
         if ( empty( $sp ) && ! empty( $tb ) ) {
             if ( ! empty( $tb['primary'] ) ) {
@@ -132,7 +132,7 @@ class BBB_Tables_Integration {
 			return $ids;
         }
 
-        // Teams mit _bbb_club_id oder _bbb_is_own_team Meta
+        // Teams mit _bbb_club_id oder _bbb_is_own_team Meta.
         $results = $wpdb->get_col(
             $wpdb->prepare(
                 "SELECT DISTINCT m2.meta_value
@@ -169,7 +169,7 @@ class BBB_Tables_Integration {
 			return $options;
         }
 
-        // Liga-IDs mit sp_table sammeln (für Filterung)
+        // Liga-IDs mit sp_table sammeln (für Filterung).
         $table_liga_ids = [];
         if ( $type_filter ) {
             $rows = $wpdb->get_results(
@@ -191,12 +191,12 @@ class BBB_Tables_Integration {
 				continue;
             }
 
-            // Typ-Filter anwenden
+            // Typ-Filter anwenden.
             $has_table = in_array( $liga_id, $table_liga_ids, true );
-            if ( $type_filter === 'league' && ! $has_table ) {
+            if ( 'league' === $type_filter && ! $has_table ) {
 				continue;
             }
-            if ( $type_filter === 'tournament' && $has_table ) {
+            if ( 'tournament' === $type_filter && $has_table ) {
 				continue;
             }
 

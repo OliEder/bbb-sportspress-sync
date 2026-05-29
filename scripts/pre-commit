@@ -1,0 +1,21 @@
+#!/bin/sh
+#
+# Pre-commit hook: auto-fix with phpcbf, then block if phpcs still reports errors.
+# Installed automatically via: composer install
+#
+set -e
+
+PHPCS="./vendor/bin/phpcs"
+PHPCBF="./vendor/bin/phpcbf"
+
+if [ ! -f "$PHPCS" ]; then
+    echo "[pre-commit] vendor/ not found – run: composer install"
+    exit 1
+fi
+
+# 1. Auto-fix what phpcbf can handle, re-stage fixed files.
+$PHPCBF --standard=.phpcs.xml --no-cache -q
+git diff --name-only --diff-filter=M | xargs -r git add
+
+# 2. Check – exit non-zero blocks the commit.
+$PHPCS --standard=.phpcs.xml --no-cache -q
