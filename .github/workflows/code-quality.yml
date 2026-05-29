@@ -25,5 +25,33 @@ jobs:
       - name: Install dependencies
         run: composer install --no-interaction --prefer-dist
 
+      - name: Register WPCS paths
+        run: |
+          ./vendor/bin/phpcs --config-set installed_paths \
+            vendor/wp-coding-standards/wpcs,\
+            vendor/phpcsstandards/phpcsutils,\
+            vendor/phpcsstandards/phpcsextra
+
       - name: Run PHPCS
         run: composer lint
+
+  phpunit:
+    name: PHPUnit Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          tools: composer
+          coverage: none
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Run PHPUnit
+        run: composer test
