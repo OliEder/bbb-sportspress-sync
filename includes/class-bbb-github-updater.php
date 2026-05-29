@@ -69,7 +69,7 @@ class BBB_GitHub_Updater {
     }
 
     public function plugin_info( $result, string $action, object $args ): mixed {
-        if ( $action !== 'plugin_information' ) {
+        if ( 'plugin_information' !== $action ) {
 			return $result;
         }
         if ( ( $args->slug ?? '' ) !== $this->plugin_slug ) {
@@ -124,7 +124,7 @@ class BBB_GitHub_Updater {
     private function get_remote_info(): ?array {
         $transient_key = "bbb_github_update_{$this->plugin_slug}";
         $cached        = get_transient( $transient_key );
-        if ( $cached !== false ) {
+        if ( false !== $cached ) {
 			return $cached;
         }
 

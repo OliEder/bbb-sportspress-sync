@@ -48,7 +48,7 @@ class BBB_Goodlayers_Bracket {
      * Liga-Auswahl, Modus, Darstellung, Erweitert.
      */
     private function get_element_options(): array {
-        // Liga-Optionen dynamisch laden
+        // Liga-Optionen dynamisch laden.
         $liga_options = $this->get_liga_options();
 
         return [
@@ -134,7 +134,7 @@ class BBB_Goodlayers_Bracket {
             '' => esc_html__( '— Turnier wählen —', 'bbb-sportspress-sync' ),
         ];
 
-        // Ligen ohne Tabelle = Turniere/Pokale
+        // Ligen ohne Tabelle = Turniere/Pokale.
         $terms = get_terms(
             [
 				'taxonomy'   => 'sp_league',
@@ -155,7 +155,7 @@ class BBB_Goodlayers_Bracket {
             return $options;
         }
 
-        // sp_table Liga-IDs sammeln
+        // sp_table Liga-IDs sammeln.
         global $wpdb;
         $table_liga_ids = $wpdb->get_col(
             "SELECT DISTINCT pm.meta_value FROM {$wpdb->posts} p
@@ -172,7 +172,7 @@ class BBB_Goodlayers_Bracket {
 				continue;
             }
 
-            // Nur Turniere (ohne Tabelle)
+            // Nur Turniere (ohne Tabelle).
             if ( in_array( $liga_id, $table_liga_ids, true ) ) {
 				continue;
             }
@@ -181,7 +181,7 @@ class BBB_Goodlayers_Bracket {
             $geschlecht = get_term_meta( $term->term_id, '_bbb_geschlecht', true ) ?: '';
 
             $label = $term->name;
-            if ( $ak_name && $ak_name !== 'Senioren' ) {
+            if ( $ak_name && 'Senioren' !== $ak_name ) {
                 $suffix = $ak_name;
                 if ( $geschlecht ) {
 					$suffix .= ' ' . $geschlecht;
@@ -229,9 +229,9 @@ class BBB_Goodlayers_Bracket {
 			'gdlr_core_bbb_bracket'
         );
 
-        // Liga-ID bestimmen: Dropdown-Wert oder manuelle Eingabe
+        // Liga-ID bestimmen: Dropdown-Wert oder manuelle Eingabe.
         $liga_id = 0;
-        if ( $atts['liga-source'] === 'custom' ) {
+        if ( 'custom' === $atts['liga-source'] ) {
             $liga_id = (int) $atts['liga-id'];
         } elseif ( is_numeric( $atts['liga-source'] ) ) {
             $liga_id = (int) $atts['liga-source'];
@@ -243,23 +243,23 @@ class BBB_Goodlayers_Bracket {
                 . '</p>';
         }
 
-        // Auf BBB Bracket Shortcode-Parameter mappen
+        // Auf BBB Bracket Shortcode-Parameter mappen.
         $bracket_atts = [
             'liga_id'        => $liga_id,
             'title'          => $atts['title'],
-            'highlight_club' => $atts['highlight-own'] === 'enable' ? (int) get_option( 'bbb_sync_club_id', 0 ) : 0,
+            'highlight_club' => 'enable' === $atts['highlight-own'] ? (int) get_option( 'bbb_sync_club_id', 0 ) : 0,
             'cache'          => (int) $atts['cache'],
-            'show_dates'     => $atts['show-dates'] === 'enable' ? 'true' : 'false',
-            'show_logos'     => $atts['show-logos'] === 'enable' ? 'true' : 'false',
+            'show_dates'     => 'enable' === $atts['show-dates'] ? 'true' : 'false',
+            'show_logos'     => 'enable' === $atts['show-logos'] ? 'true' : 'false',
             'mode'           => $atts['mode'],
             'best_of'        => (int) $atts['best-of'],
         ];
 
-        // BBB Bracket rendern
+        // BBB Bracket rendern.
         $bracket = new BBB_Tournament_Bracket();
         $output  = $bracket->render_shortcode( $bracket_atts );
 
-        // Goodlayers Wrapper
+        // Goodlayers Wrapper.
         $wrapper_class = 'gdlr-core-bbb-bracket-item gdlr-core-item-pdlr gdlr-core-item-pdb';
         return '<div class="' . esc_attr( $wrapper_class ) . '">' . $output . '</div>';
     }
@@ -392,7 +392,7 @@ class BBB_Goodlayers_Bracket {
             return $options;
         }
 
-        // sp_table Liga-IDs
+        // sp_table Liga-IDs.
         global $wpdb;
         $table_liga_ids = array_map(
             'intval',
@@ -411,14 +411,14 @@ class BBB_Goodlayers_Bracket {
 				continue;
             }
             if ( ! in_array( $liga_id, $table_liga_ids, true ) ) {
-				continue; // Nur MIT Tabelle
+				continue; // Nur MIT Tabelle.
             }
 
             $ak_name    = get_term_meta( $term->term_id, '_bbb_ak_name', true ) ?: '';
             $geschlecht = get_term_meta( $term->term_id, '_bbb_geschlecht', true ) ?: '';
 
             $label = $term->name;
-            if ( $ak_name && $ak_name !== 'Senioren' ) {
+            if ( $ak_name && 'Senioren' !== $ak_name ) {
                 $suffix = $ak_name;
                 if ( $geschlecht ) {
 					$suffix .= ' ' . $geschlecht;

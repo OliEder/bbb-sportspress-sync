@@ -21,17 +21,17 @@ class BBB_Admin_Page {
         add_action( 'admin_init', [ $this, 'handle_actions' ] );
         add_action( 'admin_notices', [ $this, 'show_notices' ] );
 
-        // AJAX endpoints
+        // AJAX endpoints.
         add_action( 'wp_ajax_bbb_start_sync', [ $this, 'ajax_start_sync' ] );
         add_action( 'wp_ajax_bbb_sync_progress', [ $this, 'ajax_sync_progress' ] );
 
-        // Meta-Box "DBB-Daten" auf sp_player + sp_team + sp_event
+        // Meta-Box "DBB-Daten" auf sp_player + sp_team + sp_event.
         add_action( 'add_meta_boxes', [ $this, 'add_dbb_meta_boxes' ] );
         add_action( 'save_post_sp_player', [ $this, 'save_dbb_meta' ] );
         add_action( 'save_post_sp_team', [ $this, 'save_dbb_meta' ] );
         add_action( 'save_post_sp_event', [ $this, 'save_dbb_meta' ] );
 
-        // Venue-Taxonomie: BBB-Felder im Term-Editor
+        // Venue-Taxonomie: BBB-Felder im Term-Editor.
         add_action( 'sp_venue_edit_form_fields', [ $this, 'render_venue_bbb_fields' ], 10, 2 );
         add_action( 'edited_sp_venue', [ $this, 'save_venue_bbb_fields' ] );
     }
@@ -159,19 +159,19 @@ class BBB_Admin_Page {
             wp_send_json_error( 'Unauthorized' );
         }
 
-        // Deadlock-Schutz: Wenn running > 5 Minuten, dann Reset
+        // Deadlock-Schutz: Wenn running > 5 Minuten, dann Reset.
         $progress = BBB_Sync_Engine::get_progress();
         if ( ! empty( $progress['running'] ) ) {
             $started = $progress['started_at'] ?? 0;
             if ( $started && ( time() - $started ) > 300 ) {
-                // Stale lock → Reset
+                // Stale lock → Reset.
                 delete_transient( 'bbb_sync_progress' );
             } else {
                 wp_send_json_error( 'Sync läuft bereits.' );
             }
         }
 
-        // Progress initialisieren
+        // Progress initialisieren.
         set_transient(
             'bbb_sync_progress',
             [
@@ -193,7 +193,7 @@ class BBB_Admin_Page {
         // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged -- functions may be disabled on shared hosting; failure is non-critical
         @ignore_user_abort( true );
 
-        // JSON-Response aufbauen
+        // JSON-Response aufbauen.
         $response = wp_json_encode(
             [
 				'success' => true,
@@ -201,12 +201,12 @@ class BBB_Admin_Page {
 			]
         );
 
-        // Alle bestehenden Output-Buffer leeren
+        // Alle bestehenden Output-Buffer leeren.
         while ( ob_get_level() > 0 ) {
             ob_end_clean();
         }
 
-        // Response senden und Connection schließen
+        // Response senden und Connection schließen.
         header( 'Content-Type: application/json; charset=utf-8' );
         header( 'Content-Length: ' . strlen( $response ) );
         header( 'Connection: close' );
@@ -217,15 +217,15 @@ class BBB_Admin_Page {
             fastcgi_finish_request();
         }
 
-        // Ab hier läuft PHP im Hintergrund weiter
-        // Der Browser hat die Antwort bereits erhalten
+        // Ab hier läuft PHP im Hintergrund weiter.
+        // Der Browser hat die Antwort bereits erhalten.
         $engine = new BBB_Sync_Engine();
 
         try {
             $stats = $engine->sync_all();
             set_transient( 'bbb_sync_notice', $this->format_stats_message( $stats ), 300 );
         } catch ( \Throwable $e ) {
-            // Fehler abfangen damit Progress auf jeden Fall auf "done" gesetzt wird
+            // Fehler abfangen damit Progress auf jeden Fall auf "done" gesetzt wird.
             set_transient(
                 'bbb_sync_progress',
                 [
@@ -242,7 +242,7 @@ class BBB_Admin_Page {
             set_transient( 'bbb_sync_notice_type', 'error', 300 );
         }
 
-        exit; // PHP-Prozess beenden
+        exit; // PHP-Prozess beenden.
     }
 
     // ═════════════════════════════════════════
@@ -257,7 +257,7 @@ class BBB_Admin_Page {
 
         $progress = BBB_Sync_Engine::get_progress();
 
-        // Deadlock-Erkennung: Sync läuft angeblich, aber kein Update seit 120s
+        // Deadlock-Erkennung: Sync läuft angeblich, aber kein Update seit 120s.
         if ( ! empty( $progress['running'] ) ) {
             $started     = $progress['started_at'] ?? 0;
             $last_update = $progress['last_update'] ?? $started;
@@ -318,7 +318,7 @@ class BBB_Admin_Page {
             exit;
         }
 
-        // Tabellen-Cache leeren (Live Tables + Brackets)
+        // Tabellen-Cache leeren (Live Tables + Brackets).
         if ( isset( $_POST['bbb_clear_table_cache'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             global $wpdb;
             $deleted = $wpdb->query(
@@ -333,7 +333,7 @@ class BBB_Admin_Page {
             exit;
         }
 
-        // Deadlock manuell lösen
+        // Deadlock manuell lösen.
         if ( isset( $_POST['bbb_reset_sync_lock'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             delete_transient( 'bbb_sync_progress' );
             set_transient( 'bbb_sync_notice', 'Sync-Lock gelöst.', 30 );
@@ -341,19 +341,19 @@ class BBB_Admin_Page {
             exit;
         }
 
-        // Repair: Result-Keys in sp_results korrigieren
+        // Repair: Result-Keys in sp_results korrigieren.
         if ( isset( $_POST['bbb_repair_result_keys'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             $this->handle_repair_result_keys();
             exit;
         }
 
-        // Cleanup: Spieler löschen
+        // Cleanup: Spieler löschen.
         if ( isset( $_POST['bbb_cleanup_players'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             $this->handle_cleanup_players();
             exit;
         }
 
-        // Cleanup: ALLES löschen (Full Reset)
+        // Cleanup: ALLES löschen (Full Reset).
         if ( isset( $_POST['bbb_cleanup_all'] ) && check_admin_referer( 'bbb_sync_action' ) ) {
             $this->handle_cleanup_all();
             exit;
@@ -405,7 +405,7 @@ class BBB_Admin_Page {
     public function render_dbb_meta_box( \WP_Post $post ): void {
         wp_nonce_field( 'bbb_dbb_meta', 'bbb_dbb_meta_nonce' );
 
-        if ( $post->post_type === 'sp_player' ) {
+        if ( 'sp_player' === $post->post_type ) {
             $person_id = get_post_meta( $post->ID, '_bbb_person_id', true );
             ?>
             <p>
@@ -420,7 +420,7 @@ class BBB_Admin_Page {
             </p>
             <?php
 
-        } elseif ( $post->post_type === 'sp_team' ) {
+        } elseif ( 'sp_team' === $post->post_type ) {
             $permanent_id = get_post_meta( $post->ID, '_bbb_team_permanent_id', true );
             ?>
             <p>
@@ -435,7 +435,7 @@ class BBB_Admin_Page {
             </p>
             <?php
 
-        } elseif ( $post->post_type === 'sp_event' ) {
+        } elseif ( 'sp_event' === $post->post_type ) {
             $match_id  = get_post_meta( $post->ID, '_bbb_match_id', true );
             $liga_id   = get_post_meta( $post->ID, '_bbb_liga_id', true );
             $match_day = get_post_meta( $post->ID, '_bbb_match_day', true );
@@ -476,7 +476,7 @@ class BBB_Admin_Page {
             <?php
         }
 
-        // Unlock-Checkbox (alle Post-Types)
+        // Unlock-Checkbox (alle Post-Types).
         ?>
         <hr style="margin:10px 0 8px;">
         <label style="font-size:11px; color:#999; cursor:pointer;">
@@ -520,7 +520,7 @@ class BBB_Admin_Page {
 
         $post_type = get_post_type( $post_id );
 
-        if ( $post_type === 'sp_player' && isset( $_POST['bbb_person_id'] ) ) {
+        if ( 'sp_player' === $post_type && isset( $_POST['bbb_person_id'] ) ) {
             $val = absint( $_POST['bbb_person_id'] );
             if ( $val > 0 ) {
                 update_post_meta( $post_id, '_bbb_person_id', $val );
@@ -529,7 +529,7 @@ class BBB_Admin_Page {
             }
         }
 
-        if ( $post_type === 'sp_team' && isset( $_POST['bbb_team_permanent_id'] ) ) {
+        if ( 'sp_team' === $post_type && isset( $_POST['bbb_team_permanent_id'] ) ) {
             $val = absint( $_POST['bbb_team_permanent_id'] );
             if ( $val > 0 ) {
                 update_post_meta( $post_id, '_bbb_team_permanent_id', $val );

@@ -18,8 +18,6 @@
         <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
         <!-- Tabs vs spaces: we use spaces -->
         <exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
-        <!-- Yoda conditions: not required in this project -->
-        <exclude name="WordPress.PHP.YodaConditions"/>
         <!-- Short ternary (?:) is fine -->
         <exclude name="Universal.Operators.DisallowShortTernary"/>
 
@@ -29,7 +27,6 @@
         <exclude name="Squiz.Commenting.ClassComment"/>
         <exclude name="Squiz.Commenting.FunctionComment"/>
         <exclude name="Squiz.Commenting.VariableComment"/>
-        <exclude name="Squiz.Commenting.InlineComment.InvalidEndChar"/>
         <exclude name="Generic.Commenting.DocComment"/>
         <exclude name="WordPress.WP.I18n"/>
 
@@ -45,7 +42,6 @@
         <exclude name="WordPress.WP.GetMetaSingle"/>
         <exclude name="Generic.CodeAnalysis.UnusedFunctionParameter"/>
         <exclude name="WordPress.WP.CronInterval"/>
-        <exclude name="WordPress.DateTime.RestrictedFunctions.date_date"/>
     </rule>
 
     <!-- Minimum PHP version -->
