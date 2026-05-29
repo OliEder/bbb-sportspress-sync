@@ -23,6 +23,9 @@
     "scripts": {
         "lint": "phpcs",
         "lint-fix": "phpcbf",
-        "test": "phpunit"
+        "test": "phpunit",
+        "install-hooks": "cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit && echo 'Git pre-commit hook installed.'",
+        "post-install-cmd": "@install-hooks",
+        "post-update-cmd": "@install-hooks"
     }
 }

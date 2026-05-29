@@ -23,14 +23,7 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
-
-      - name: Register WPCS paths
-        run: |
-          ./vendor/bin/phpcs --config-set installed_paths \
-            vendor/wp-coding-standards/wpcs,\
-            vendor/phpcsstandards/phpcsutils,\
-            vendor/phpcsstandards/phpcsextra
+        run: composer install --no-interaction --prefer-dist --no-scripts
 
       - name: Run PHPCS
         run: composer lint
@@ -51,7 +44,7 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        run: composer install --no-interaction --prefer-dist
+        run: composer install --no-interaction --prefer-dist --no-scripts
 
       - name: Run PHPUnit
         run: composer test

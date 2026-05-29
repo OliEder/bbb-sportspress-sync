@@ -44,6 +44,9 @@
         <exclude name="WordPress.WP.CronInterval"/>
     </rule>
 
+    <!-- WPCS paths: relative to project root, no global phpcs config-set needed -->
+    <config name="installed_paths" value="vendor/wp-coding-standards/wpcs,vendor/phpcsstandards/phpcsutils,vendor/phpcsstandards/phpcsextra"/>
+
     <!-- Minimum PHP version -->
     <config name="minimum_supported_wp_version" value="6.0"/>
     <config name="testVersion" value="8.0-"/>
