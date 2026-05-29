@@ -19,7 +19,7 @@ defined( 'ABSPATH' ) || exit;
 class BBB_Player_Sync {
 
     private BBB_Api_Client $api;
-    private int $sync_user_id = 0;
+    private int $sync_user_id    = 0;
     private int $players_created = 0;
     private int $players_updated = 0;
     private int $players_skipped = 0;
@@ -58,7 +58,7 @@ class BBB_Player_Sync {
     private ?array $configured_mapping = null;
 
     public function __construct( BBB_Api_Client $api, int $sync_user_id = 0 ) {
-        $this->api = $api;
+        $this->api          = $api;
         $this->sync_user_id = $sync_user_id;
     }
 
@@ -78,7 +78,10 @@ class BBB_Player_Sync {
      * @param array $own_permanent_ids  Wenn nicht leer: nur diese Teams synchen (eigene Spieler)
      */
     public function sync_from_match(
-        int $match_id, int $event_wp_id, array $team_wp_map, array $own_permanent_ids = []
+        int $match_id,
+        int $event_wp_id,
+        array $team_wp_map,
+        array $own_permanent_ids = []
     ): array {
         $this->players_created = 0;
         $this->players_updated = 0;
@@ -99,7 +102,7 @@ class BBB_Player_Sync {
 
         $this->api->throttle();
 
-        $stats = $this->get_stats();
+        $stats                  = $this->get_stats();
         $stats['boxscore_data'] = $boxscore_data;
 
         $match_boxscore = $boxscore_data['matchBoxscore'] ?? null;
@@ -107,7 +110,7 @@ class BBB_Player_Sync {
         if ( $match_boxscore === null ) {
             $this->log( "Kein Boxscore für Match {$match_id} (vermutlich Mini-Liga)" );
             update_post_meta( $event_wp_id, '_bbb_boxscore_synced', 'no_data' );
-            $stats = $this->get_stats();
+            $stats                  = $this->get_stats();
             $stats['boxscore_data'] = $boxscore_data;
             return $stats;
         }
@@ -118,17 +121,23 @@ class BBB_Player_Sync {
         $guest_permanent_id = (int) ( $boxscore_data['guestTeam']['teamPermanentId'] ?? 0 );
 
         $sides = [
-            [ 'stats' => $match_boxscore['homePlayerStats'] ?? [], 'permanent_id' => $home_permanent_id ],
-            [ 'stats' => $match_boxscore['guestPlayerStats'] ?? [], 'permanent_id' => $guest_permanent_id ],
+            [
+				'stats'        => $match_boxscore['homePlayerStats'] ?? [],
+				'permanent_id' => $home_permanent_id,
+			],
+            [
+				'stats'        => $match_boxscore['guestPlayerStats'] ?? [],
+				'permanent_id' => $guest_permanent_id,
+			],
         ];
 
         // Event-Performance: team_wp_id => [ player_wp_id => [ slug => value ] ]
         $event_performance = [];
 
         // v3.5.0: Debug-Flags
-        $stat_keys_logged = false;
+        $stat_keys_logged    = false;
         $mapped_stats_logged = false;
-        $raw_stats_logged = false;
+        $raw_stats_logged    = false;
 
         foreach ( $sides as $side ) {
             $pid = $side['permanent_id'];
@@ -139,7 +148,9 @@ class BBB_Player_Sync {
             }
 
             $team_wp_id = $team_wp_map[ $pid ] ?? null;
-            if ( ! $team_wp_id ) continue;
+            if ( ! $team_wp_id ) {
+				continue;
+            }
 
             if ( ! isset( $event_performance[ $team_wp_id ] ) ) {
                 $event_performance[ $team_wp_id ] = [];
@@ -149,27 +160,31 @@ class BBB_Player_Sync {
                 // v3.5.0: Debug - Rohe Stat-Keys UND Werte loggen (einmalig)
                 if ( ! $stat_keys_logged ) {
                     $keys = array_keys( $player_stat );
-                    $this->log( "Boxscore Stat-Keys: [" . implode( ', ', $keys ) . "]" );
+                    $this->log( 'Boxscore Stat-Keys: [' . implode( ', ', $keys ) . ']' );
                     $stat_keys_logged = true;
                 }
                 if ( ! $raw_stats_logged ) {
                     // Nur die relevanten Felder loggen (nicht das ganze Objekt)
                     $debug_fields = [];
                     foreach ( array_keys( self::STAT_ALIASES ) as $k ) {
-                        if ( isset( $player_stat[ $k ] ) ) $debug_fields[ $k ] = $player_stat[ $k ];
+                        if ( isset( $player_stat[ $k ] ) ) {
+							$debug_fields[ $k ] = $player_stat[ $k ];
+                        }
                     }
                     foreach ( array_keys( self::STAT_ALIASES_NESTED ) as $k ) {
-                        if ( isset( $player_stat[ $k ] ) ) $debug_fields[ $k ] = $player_stat[ $k ];
+                        if ( isset( $player_stat[ $k ] ) ) {
+							$debug_fields[ $k ] = $player_stat[ $k ];
+                        }
                     }
                     $this->log( 'Raw BBB Stats (erster Spieler): ' . wp_json_encode( $debug_fields ) );
                     $raw_stats_logged = true;
                 }
 
                 $player_wrapper = $player_stat['player'] ?? $player_stat;
-                $wp_player_id = $this->sync_player( $player_wrapper, $team_wp_id, $event_wp_id );
+                $wp_player_id   = $this->sync_player( $player_wrapper, $team_wp_id, $event_wp_id );
 
                 if ( $wp_player_id ) {
-                    $mapped_stats = $this->map_bbb_stats( $player_stat );
+                    $mapped_stats                                      = $this->map_bbb_stats( $player_stat );
                     $event_performance[ $team_wp_id ][ $wp_player_id ] = $mapped_stats;
 
                     if ( ! $mapped_stats_logged ) {
@@ -186,13 +201,19 @@ class BBB_Player_Sync {
 
         update_post_meta( $event_wp_id, '_bbb_boxscore_synced', '1' );
 
-        $this->log( sprintf(
-            'Boxscore Match %d (statType=%d): %d erstellt, %d aktualisiert, %d übersprungen, %d Teams',
-            $match_id, $stat_type, $this->players_created, $this->players_updated,
-            $this->players_skipped, count( $event_performance )
-        ));
+        $this->log(
+            sprintf(
+                'Boxscore Match %d (statType=%d): %d erstellt, %d aktualisiert, %d übersprungen, %d Teams',
+                $match_id,
+                $stat_type,
+                $this->players_created,
+                $this->players_updated,
+                $this->players_skipped,
+                count( $event_performance )
+            )
+        );
 
-        $stats = $this->get_stats();
+        $stats                  = $this->get_stats();
         $stats['boxscore_data'] = $boxscore_data;
         return $stats;
     }
@@ -203,19 +224,28 @@ class BBB_Player_Sync {
     private function resolve_sp_slug( array $aliases ): ?string {
         if ( $this->resolved_slugs === null ) {
             $this->resolved_slugs = [];
-            $query = new WP_Query([
-                'post_type' => 'sp_performance', 'post_status' => 'publish',
-                'posts_per_page' => -1, 'fields' => 'ids', 'no_found_rows' => true,
-            ]);
+            $query                = new WP_Query(
+                [
+					'post_type'      => 'sp_performance',
+					'post_status'    => 'publish',
+					'posts_per_page' => -1,
+					'fields'         => 'ids',
+					'no_found_rows'  => true,
+				]
+            );
             foreach ( $query->posts as $pid ) {
                 $post = get_post( $pid );
-                if ( $post ) $this->resolved_slugs[ $post->post_name ] = true;
+                if ( $post ) {
+					$this->resolved_slugs[ $post->post_name ] = true;
+                }
             }
             $this->log( 'SP Performance-Slugs: [' . implode( ', ', array_keys( $this->resolved_slugs ) ) . ']' );
         }
 
         foreach ( $aliases as $slug ) {
-            if ( isset( $this->resolved_slugs[ $slug ] ) ) return $slug;
+            if ( isset( $this->resolved_slugs[ $slug ] ) ) {
+				return $slug;
+            }
         }
         return $aliases[0] ?? null;
     }
@@ -227,8 +257,10 @@ class BBB_Player_Sync {
      * Leer = Fallback auf STAT_ALIASES (Abwärtskompatibel).
      */
     private function get_configured_mapping(): array {
-        if ( $this->configured_mapping !== null ) return $this->configured_mapping;
-        $raw = get_option( 'bbb_sync_stat_mapping', '' );
+        if ( $this->configured_mapping !== null ) {
+			return $this->configured_mapping;
+        }
+        $raw                      = get_option( 'bbb_sync_stat_mapping', '' );
         $this->configured_mapping = $raw ? ( json_decode( $raw, true ) ?: [] ) : [];
         return $this->configured_mapping;
     }
@@ -266,7 +298,9 @@ class BBB_Player_Sync {
             ];
             foreach ( $nested as $api_parent => $config_prefix ) {
                 $parent = $player_stat[ $api_parent ] ?? null;
-                if ( ! is_array( $parent ) ) continue;
+                if ( ! is_array( $parent ) ) {
+					continue;
+                }
 
                 $made_slug = $config[ "{$config_prefix}.made" ] ?? null;
                 if ( $made_slug && array_key_exists( 'made', $parent ) && $parent['made'] !== null ) {
@@ -291,15 +325,21 @@ class BBB_Player_Sync {
 
             foreach ( self::STAT_ALIASES_NESTED as $bbb_parent => [ $made_aliases, $attempted_aliases ] ) {
                 $parent = $player_stat[ $bbb_parent ] ?? null;
-                if ( ! is_array( $parent ) ) continue;
+                if ( ! is_array( $parent ) ) {
+					continue;
+                }
 
                 if ( array_key_exists( 'made', $parent ) && $parent['made'] !== null ) {
                     $sp_slug = $this->resolve_sp_slug( $made_aliases );
-                    if ( $sp_slug ) $mapped[ $sp_slug ] = (string) (int) $parent['made'];
+                    if ( $sp_slug ) {
+						$mapped[ $sp_slug ] = (string) (int) $parent['made'];
+                    }
                 }
                 if ( array_key_exists( 'attempted', $parent ) && $parent['attempted'] !== null ) {
                     $sp_slug = $this->resolve_sp_slug( $attempted_aliases );
-                    if ( $sp_slug ) $mapped[ $sp_slug ] = (string) (int) $parent['attempted'];
+                    if ( $sp_slug ) {
+						$mapped[ $sp_slug ] = (string) (int) $parent['attempted'];
+                    }
                 }
             }
         }
@@ -315,7 +355,9 @@ class BBB_Player_Sync {
     private function write_event_performance( int $event_wp_id, array $performance ): void {
         // Bestehende sp_players laden – manuell eingetragene Stats schützen
         $sp_players = get_post_meta( $event_wp_id, 'sp_players', true );
-        if ( ! is_array( $sp_players ) ) $sp_players = [];
+        if ( ! is_array( $sp_players ) ) {
+			$sp_players = [];
+        }
 
         $total = 0;
 
@@ -335,7 +377,7 @@ class BBB_Player_Sync {
                     }
                 }
                 $sp_players[ $team_wp_id ][ $player_wp_id ] = $existing_stats;
-                $total++;
+                ++$total;
 
                 // v3.5.0: Spieler auch als sp_player zum Event hinzufügen
                 $existing_event_players = get_post_meta( $event_wp_id, 'sp_player' );
@@ -363,7 +405,7 @@ class BBB_Player_Sync {
         $anonym    = ( $player_data['anonym'] ?? false ) || ( $person['anonym'] ?? false );
 
         if ( $player_id === 0 || $anonym === true ) {
-            $this->players_skipped++;
+            ++$this->players_skipped;
             return null;
         }
 
@@ -372,7 +414,7 @@ class BBB_Player_Sync {
         $full_name = trim( "{$vorname} {$nachname}" );
 
         if ( empty( $full_name ) || $full_name === '*** ****' ) {
-            $this->players_skipped++;
+            ++$this->players_skipped;
             return null;
         }
 
@@ -402,9 +444,14 @@ class BBB_Player_Sync {
             $wp_id = $existing_id;
             // Spieler-Titel nur bei Adoption (noch keine _bbb_person_id) setzen
             if ( ! get_post_meta( $existing_id, '_bbb_person_id', true ) ) {
-                wp_update_post( [ 'ID' => $existing_id, 'post_title' => $full_name ] );
+                wp_update_post(
+                    [
+						'ID'         => $existing_id,
+						'post_title' => $full_name,
+					]
+                );
             }
-            $this->players_updated++;
+            ++$this->players_updated;
         } else {
             // ═══ CREATE: Alle Felder setzen ═══
             $post_data = [
@@ -416,12 +463,16 @@ class BBB_Player_Sync {
                 $post_data['post_author'] = $this->sync_user_id;
             }
             $wp_id = wp_insert_post( $post_data );
-            if ( is_wp_error( $wp_id ) || ! $wp_id ) return null;
-            $this->players_created++;
+            if ( is_wp_error( $wp_id ) || ! $wp_id ) {
+				return null;
+            }
+            ++$this->players_created;
         }
 
         // BBB-interne Meta (Primary Keys – immer aktualisieren)
-        if ( $person_id ) update_post_meta( $wp_id, '_bbb_person_id', $person_id );
+        if ( $person_id ) {
+			update_post_meta( $wp_id, '_bbb_person_id', $person_id );
+        }
         update_post_meta( $wp_id, '_bbb_player_id', $player_id );
 
         // SP-Felder: Nur setzen wenn leer (schützt manuelle Änderungen)
@@ -438,11 +489,14 @@ class BBB_Player_Sync {
 
         // sp_team: prüfe ob schon zugewiesen (direkte DB-Query)
         global $wpdb;
-        $already_assigned = $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->postmeta}
+        $already_assigned = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->postmeta}
              WHERE post_id = %d AND meta_key = 'sp_team' AND meta_value = %s",
-            $wp_id, (string) $team_wp_id
-        ) );
+                $wp_id,
+                (string) $team_wp_id
+            )
+        );
         if ( ! $already_assigned ) {
             add_post_meta( $wp_id, 'sp_team', $team_wp_id );
         }
@@ -467,19 +521,24 @@ class BBB_Player_Sync {
     public function ensure_player_list( int $team_wp_id, int $season_term_id, int $league_term_id ): int|false {
         // v3.5.0: Direkte DB-Query statt WP_Query (Cache-Problem)
         global $wpdb;
-        $existing = $wpdb->get_var( $wpdb->prepare(
-            "SELECT p.ID FROM {$wpdb->posts} p
+        $existing = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->posts} p
              INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_bbb_team_wp_id' AND pm.meta_value = %d
              INNER JOIN {$wpdb->term_relationships} tr ON p.ID = tr.object_id
              INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id AND tt.term_id = %d
              WHERE p.post_type = 'sp_list' AND p.post_status = 'publish'
              LIMIT 1",
-            $team_wp_id, $season_term_id
-        ) );
+                $team_wp_id,
+                $season_term_id
+            )
+        );
 
-        if ( $existing ) return (int) $existing;
+        if ( $existing ) {
+			return (int) $existing;
+        }
 
-        $team_name = get_the_title( $team_wp_id );
+        $team_name   = get_the_title( $team_wp_id );
         $season_term = get_term( $season_term_id, 'sp_season' );
         $season_name = ( $season_term && ! is_wp_error( $season_term ) ) ? $season_term->name : '';
 
@@ -493,7 +552,9 @@ class BBB_Player_Sync {
         }
         $list_id = wp_insert_post( $list_data );
 
-        if ( is_wp_error( $list_id ) || ! $list_id ) return false;
+        if ( is_wp_error( $list_id ) || ! $list_id ) {
+			return false;
+        }
 
         update_post_meta( $list_id, '_bbb_team_wp_id', $team_wp_id );
         update_post_meta( $list_id, 'sp_team', $team_wp_id );
@@ -512,11 +573,14 @@ class BBB_Player_Sync {
      */
     public function add_player_to_list( int $list_id, int $player_wp_id ): void {
         global $wpdb;
-        $exists = $wpdb->get_var( $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$wpdb->postmeta}
+        $exists = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->postmeta}
              WHERE post_id = %d AND meta_key = 'sp_player' AND meta_value = %d",
-            $list_id, $player_wp_id
-        ) );
+                $list_id,
+                $player_wp_id
+            )
+        );
         if ( ! $exists ) {
             add_post_meta( $list_id, 'sp_player', $player_wp_id );
         }
@@ -527,36 +591,58 @@ class BBB_Player_Sync {
     // ─────────────────────────────────────────
 
     private function find_by_person_id( int $person_id ): int|false {
-        if ( ! $person_id ) return false;
+        if ( ! $person_id ) {
+			return false;
+        }
         global $wpdb;
-        $id = $wpdb->get_var( $wpdb->prepare(
-            "SELECT p.ID FROM {$wpdb->posts} p
+        $id = $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT p.ID FROM {$wpdb->posts} p
              INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
              WHERE p.post_type = 'sp_player' AND p.post_status = 'publish'
              AND pm.meta_key = '_bbb_person_id' AND pm.meta_value = %d
              LIMIT 1",
-            $person_id
-        ) );
+                $person_id
+            )
+        );
         return $id ? (int) $id : false;
     }
 
     private function find_by_name( string $full_name ): int|false {
         $normalized = mb_strtolower( trim( $full_name ) );
-        $query = new WP_Query([
-            'post_type' => 'sp_player', 'post_status' => 'any', 'posts_per_page' => -1,
-            'meta_query' => [[ 'key' => '_bbb_person_id', 'compare' => 'NOT EXISTS' ]],
-            'fields' => 'ids', 'no_found_rows' => true,
-        ]);
+        $query      = new WP_Query(
+            [
+				'post_type'      => 'sp_player',
+				'post_status'    => 'any',
+				'posts_per_page' => -1,
+				'meta_query'     => [
+					[
+						'key'     => '_bbb_person_id',
+						'compare' => 'NOT EXISTS',
+					],
+				],
+				'fields'         => 'ids',
+				'no_found_rows'  => true,
+			]
+        );
         foreach ( $query->posts as $post_id ) {
-            if ( mb_strtolower( trim( get_the_title( $post_id ) ) ) === $normalized ) return $post_id;
+            if ( mb_strtolower( trim( get_the_title( $post_id ) ) ) === $normalized ) {
+				return $post_id;
+            }
         }
         return false;
     }
 
     private function log( string $message ): void {
-        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) error_log( "[BBB-Player] {$message}" );
+        if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+			error_log( "[BBB-Player] {$message}" );
+        }
         $logs   = get_option( 'bbb_sync_logs', [] );
-        $logs[] = [ 'time' => current_time( 'mysql' ), 'level' => 'info', 'message' => "[Player] {$message}" ];
+        $logs[] = [
+			'time'    => current_time( 'mysql' ),
+			'level'   => 'info',
+			'message' => "[Player] {$message}",
+		];
         $logs   = array_slice( $logs, -200 );
         update_option( 'bbb_sync_logs', $logs, false );
     }

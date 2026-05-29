@@ -17,6 +17,9 @@ wp-content/upgrade/
 node_modules/
 package-lock.json
 
+# Composer / PHP tooling
+vendor/
+
 # Logs
 *.log
 debug.log
