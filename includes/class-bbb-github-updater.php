@@ -111,7 +111,8 @@ class BBB_GitHub_Updater {
 
         if ( $install_dir !== $proper_dir ) {
             $wp_filesystem->move( $install_dir, $proper_dir );
-            $result['destination'] = $proper_dir;
+            $result['destination']      = $proper_dir;
+            $result['destination_name'] = $this->plugin_slug;
         }
 
         if ( is_plugin_active( $this->plugin_file ) ) {

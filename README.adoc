@@ -273,7 +273,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.5, 2026-07-18):
+Aktueller Stand (Stand: v1.1.6, 2026-07-18):
 
 [source]
 ----
@@ -282,11 +282,11 @@ PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.2.32
 Configuration: /app/phpunit.xml.dist
 
-..................................                                34 / 34 (100%)
+.........................................                                41 / 41 (100%)
 
-Time: 00:00.179, Memory: 22.00 MB
+Time: 00:00.179, Memory: 24.00 MB
 
-OK (34 tests, 118 assertions)
+OK (41 tests, 131 assertions)
 ----
 
 Abgedeckt:
@@ -300,9 +300,36 @@ Abgedeckt:
   Non-200-Status, ungültigem JSON und API-Fehlerstatus (8 Tests)
 * `BBB_Player_Sync` – Stat-Alias-Mapping (Basketball-Statistiken, Wurfarten,
   Freiwürfe) und Konstruktor-Verhalten (7 Tests)
+* `BBB_Sync_Engine::sync_team_home_venue()` – Append-only Home-Court-Zuweisung
+  am Heimteam, WP_Error-Abbruch (4 Tests)
+* Venue-Lookup-Cache (`is_venue_lookup_cached_as_failed()`/
+  `cache_venue_lookup_failure()`) – 24h-Transient gegen wiederholte
+  erfolglose matchInfo-API-Calls (3 Tests)
 
 
 == Changelog
+
+=== v1.1.6 (2026-07-18)
+
+* **Feature: Team-Home-Venue-Sync** – Der beim Sync ermittelte Spielort wird
+  jetzt zusätzlich als Home-Court am Heimteam ergänzt (append-only, `sp_venue`
+  am `sp_team`-Post; bestehende manuelle Home-Courts bleiben erhalten).
+  Ermöglicht SportsPress' „Automatisch"-Court-Logik auch für künftige Spiele
+  ohne API-Ergebnis.
+* **Fix: Early-Return-Bug** – Die Venue-Ermittlung (`maybe_sync_venue()`) lief
+  bisher nur für Spiele mit Ergebnis. Jetzt auch für zukünftige Spiele, mit
+  24h-Transient-Cache (`is_venue_lookup_cached_as_failed()`/
+  `cache_venue_lookup_failure()`) gegen wiederholte erfolglose
+  matchInfo-API-Anfragen.
+* **Fix: GitHub-Updater `destination_name`** – Nach dem Verschieben des
+  entpackten Plugin-Ordners auf den tatsächlichen Install-Pfad wurde
+  `$result['destination_name']` nicht mitaktualisiert. WordPress-Core liest
+  diesen Wert nach der Installation erneut aus (`wp_ajax_update_plugin()`),
+  was bei abweichendem Ordnernamen (z. B. `bbb-sportspress-sync-1`) zu einer
+  PHP-Warning („Trying to access array offset on false") und einer
+  fälschlich als fehlgeschlagen angezeigten Aktualisierung führte, obwohl die
+  Dateien korrekt installiert wurden.
+* Neue Unit-Tests: `SyncTeamHomeVenueTest`, `VenueLookupCacheTest`.
 
 === v1.1.5 (2026-07-18)
 

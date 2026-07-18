@@ -307,7 +307,10 @@ Methoden-Übersicht:
 | Einzelnes Spiel synchronisieren (Results, Status, Taxonomies)
 
 | `maybe_sync_venue()`
-| Venue anlegen/aktualisieren mit matchInfo + Geocoding
+| Venue anlegen/aktualisieren mit matchInfo + Geocoding (auch ohne Ergebnis, 24h-Cache gegen erfolglose Lookups)
+
+| `sync_team_home_venue()`
+| Venue als Home-Court am Heimteam ergänzt (append-only, `sp_venue`-Taxonomie am `sp_team`)
 
 | `reconcile_events()`
 | Verschwundene Spiele löschen
@@ -344,6 +347,10 @@ Methoden-Übersicht:
 | `post_author`
 | Sync-User
 | Nur wenn aktueller Autor = Sync-User
+
+| Home-Court (`sp_venue` am `sp_team`)
+| —
+| Nur ergänzt (append-only), nie ersetzt – manuell gepflegte Home-Courts bleiben erhalten
 |===
 
 ==== BBB_Api_Client (~13 KB)
@@ -913,6 +920,18 @@ E2E-Tests als mögliche Erweiterung.
 [cols="1,1,4",options="header"]
 |===
 | Version | Datum | Änderungen
+
+| v1.1.6
+| 2026-07-18
+| Team-Home-Venue-Sync: `sync_team_home_venue()` weist Teams beim Sync append-only ihren
+Heim-Spielort zu (bestehende Zuordnungen bleiben unangetastet). Fix Early-Return-Bug:
+`maybe_sync_venue()` brach bei Spielen ohne Ergebnis vorzeitig ab und ließ Venue-Zuordnungen
+aus, obwohl Spielort-Infos oft schon vor Spielbeginn bekannt sind – Early-Return entfernt.
+Neuer 24h-Transient-Cache (`bbb_venue_lookup_failed_{match_id}`) verhindert wiederholte
+erfolglose matchInfo-API-Abfragen. GitHub-Updater-Fix: `after_install()` synchronisiert
+jetzt zusätzlich `$result['destination_name']`, nachdem der Installationsordner umbenannt
+wurde – behebt einen Absturz von `wp_ajax_update_plugin()` in WP-Core (`get_plugins()` fand
+das Plugin nach Ordner-Rename nicht mehr, `reset()` lieferte `false`).
 
 | v1.1.5
 | 2026-07-18

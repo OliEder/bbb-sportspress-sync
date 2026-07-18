@@ -10,9 +10,10 @@
 
 // WordPress constants used by the plugin files
 define( 'ABSPATH', __DIR__ . '/' );
-define( 'BBB_SYNC_VERSION', '1.1.5' );
+define( 'BBB_SYNC_VERSION', '1.1.6' );
 define( 'BBB_API_BASE_URL', 'https://www.basketball-bund.net/rest' );
 define( 'WP_DEBUG', false );
+define( 'DAY_IN_SECONDS', 86400 );
 
 require_once dirname( __DIR__ ) . '/vendor/autoload.php';
 

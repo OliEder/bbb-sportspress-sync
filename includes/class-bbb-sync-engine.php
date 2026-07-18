@@ -1271,7 +1271,7 @@ class BBB_Sync_Engine {
         }
 
         // v3.5.0: Venue-Sync (immer, auch ohne Player-Sync).
-        $this->maybe_sync_venue( $match, $wp_id, $boxscore_data );
+        $this->maybe_sync_venue( $match, $wp_id, $home_wp_id, $boxscore_data );
     }
 
     // ═════════════════════════════════════════
@@ -1525,8 +1525,47 @@ class BBB_Sync_Engine {
     }
 
     // ═════════════════════════════════════════════
-    // VENUE SYNC (v3.5.0: Dual-Format Support)
+    // VENUE SYNC (v3.5.0: Dual-Format Support, v1.1.6: Team-Home-Venue)
     // ═════════════════════════════════════════
+
+    /**
+     * Prüft, ob die Venue-Ermittlung für dieses Spiel bereits einmal
+     * endgültig fehlgeschlagen ist (v1.1.6).
+     *
+     * Vermeidet wiederholte matchInfo-API-Calls bei jedem Sync-Lauf für
+     * Spiele, deren Venue dauerhaft nicht ermittelbar ist.
+     */
+    private function is_venue_lookup_cached_as_failed( int $match_id ): bool {
+        return (bool) get_transient( "bbb_venue_lookup_failed_{$match_id}" );
+    }
+
+    /**
+     * Merkt sich einen fehlgeschlagenen Venue-Lookup für 24h (v1.1.6).
+     */
+    private function cache_venue_lookup_failure( int $match_id ): void {
+        set_transient( "bbb_venue_lookup_failed_{$match_id}", '1', DAY_IN_SECONDS );
+    }
+
+    /**
+     * Home-Court eines Teams (sp_team-Post) ergänzen.
+     *
+     * v1.1.6: Append-only – ein bereits zugewiesener Home-Court wird nie
+     * ersetzt, nur um neue Venues ergänzt (append=true). Ist die konkrete
+     * Venue bereits zugewiesen, wird nichts geschrieben (idempotent).
+     */
+    private function sync_team_home_venue( int $team_wp_id, int $venue_term_id ): void {
+        $existing_venues = wp_get_object_terms( $team_wp_id, 'sp_venue', [ 'fields' => 'ids' ] );
+
+        if ( is_wp_error( $existing_venues ) ) {
+            return;
+        }
+
+        if ( in_array( $venue_term_id, $existing_venues, true ) ) {
+            return;
+        }
+
+        wp_set_object_terms( $team_wp_id, $venue_term_id, 'sp_venue', true );
+    }
 
     /**
      * Sync venue with dual-format matchInfo support.
@@ -1536,10 +1575,16 @@ class BBB_Sync_Engine {
      *   Format B (Mini-Liga):    data.ort (String), data.akgId ("U10")
      *
      * Boxscore enthält KEIN spielfeld → immer matchInfo-Endpoint als Venue-Quelle.
+     *
+     * v1.1.6: Wird auch für Spiele OHNE Ergebnis versucht (Spielort ist oft
+     * vor Spielbeginn bekannt). 24h-Cache (is_venue_lookup_cached_as_failed())
+     * verhindert wiederholte erfolglose API-Calls. Zusätzlich wird der
+     * ermittelte Venue-Term am Heimteam als Home-Court ergänzt
+     * (sync_team_home_venue()), damit SportsPress' "Automatisch"-Court-Logik
+     * auch für künftige Spiele ohne API-Ergebnis greifen kann.
      */
-    private function maybe_sync_venue( array $match, int $event_wp_id, ?array $boxscore_data = null ): void { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames -- parameter name reflects BBB API data structure
-        $match_id   = (int) ( $match['matchId'] ?? 0 );
-        $result_str = $match['result'] ?? null;
+    private function maybe_sync_venue( array $match, int $event_wp_id, int $home_wp_id, ?array $boxscore_data = null ): void { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames -- parameter name reflects BBB API data structure
+        $match_id = (int) ( $match['matchId'] ?? 0 );
 
         // Auch Venue für zukünftige Spiele setzen (aus match-Daten).
         if ( ! $match_id ) {
@@ -1566,8 +1611,11 @@ class BBB_Sync_Engine {
 
         // Prio 2: matchInfo-Endpoint (immer als Fallback).
         if ( ! $spielfeld || empty( $spielfeld['id'] ) ) {
-            // Nur für beendete Spiele matchInfo laden (API-Call sparen).
-            if ( null === $result_str ) {
+            // v1.1.6: Auch ohne Ergebnis versuchen (Spielort ist oft vor
+            // Spielbeginn bekannt), aber 24h-Cache gegen wiederholte
+            // erfolglose Anfragen (z. B. Freundschaftsspiele ohne Spielort
+            // in der API).
+            if ( $this->is_venue_lookup_cached_as_failed( $match_id ) ) {
 				return;
             }
 
@@ -1576,6 +1624,7 @@ class BBB_Sync_Engine {
 
             if ( is_wp_error( $match_info ) ) {
                 ++$this->stats['errors'];
+                $this->cache_venue_lookup_failure( $match_id );
                 return;
             }
             $this->api->throttle();
@@ -1598,6 +1647,7 @@ class BBB_Sync_Engine {
         }
 
         if ( ! $spielfeld || empty( $spielfeld['id'] ) ) {
+            $this->cache_venue_lookup_failure( $match_id );
 			return;
         }
 
@@ -1647,6 +1697,9 @@ class BBB_Sync_Engine {
 
         // Venue zum Event zuweisen.
         wp_set_object_terms( $event_wp_id, $venue_term_id, 'sp_venue', false );
+
+        // v1.1.6: Home-Court des Heimteams ergänzen (append-only).
+        $this->sync_team_home_venue( $home_wp_id, $venue_term_id );
     }
 
     /**
