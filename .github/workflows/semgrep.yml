@@ -17,10 +17,11 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      # Report-only: Findings werden im Log ausgegeben, der Build schlägt aber
-      # nicht fehl. Nach Triage der bestehenden Findings kann --error ergänzt
-      # werden, um den Job blockierend zu schalten.
+      # Blockierend: alle Findings zum Zeitpunkt der Einführung wurden triagiert
+      # (Action-Tags gepinnt, Dependabot-Cooldown ergänzt, ein False-Positive
+      # per nosemgrep-Kommentar begründet unterdrückt). Neue Findings lassen
+      # den Build fehlschlagen.
       - name: Run Semgrep
-        run: semgrep scan --config p/php --config p/security-audit --config p/owasp-top-ten
+        run: semgrep scan --config p/php --config p/security-audit --config p/owasp-top-ten --error
