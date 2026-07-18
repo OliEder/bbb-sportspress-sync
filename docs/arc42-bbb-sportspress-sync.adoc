@@ -921,6 +921,16 @@ E2E-Tests als mögliche Erweiterung.
 |===
 | Version | Datum | Änderungen
 
+| v1.1.7
+| 2026-07-19
+| Code Style (Issue #2): `BBB_Logo_Handler::save_to_media_library()` nutzt jetzt eine private
+`write_file()`-Methode über die WP-Filesystem-API (`$wp_filesystem->put_contents()`) statt
+direktem `file_put_contents()` (behebt `WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents`,
+Exclude aus `.phpcs.xml` entfernt). Nebenbei Bugfix: Schreibfehler beim Aktualisieren eines
+bestehenden Attachments wurden bisher ignoriert, werden jetzt propagiert. `in_array()`-Punkt
+aus Issue #2 als bereits erfüllt bestätigt (alle 19 Vorkommen hatten schon `true` als
+drittem Parameter).
+
 | v1.1.6
 | 2026-07-18
 | Team-Home-Venue-Sync: `sync_team_home_venue()` weist Teams beim Sync append-only ihren

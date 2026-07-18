@@ -38,7 +38,6 @@
 
         <!-- ── Misc low-value rules ────────────────────────────────── -->
         <exclude name="WordPress.PHP.DevelopmentFunctions.error_log_error_log"/>
-        <exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents"/>
         <exclude name="WordPress.WP.GetMetaSingle"/>
         <exclude name="Generic.CodeAnalysis.UnusedFunctionParameter"/>
         <exclude name="WordPress.WP.CronInterval"/>

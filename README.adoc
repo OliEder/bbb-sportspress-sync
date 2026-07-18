@@ -273,7 +273,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.6, 2026-07-18):
+Aktueller Stand (Stand: v1.1.7, 2026-07-19):
 
 [source]
 ----
@@ -282,11 +282,11 @@ PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.2.32
 Configuration: /app/phpunit.xml.dist
 
-.........................................                                41 / 41 (100%)
+............................................                             44 / 44 (100%)
 
 Time: 00:00.179, Memory: 24.00 MB
 
-OK (41 tests, 131 assertions)
+OK (44 tests, 136 assertions)
 ----
 
 Abgedeckt:
@@ -305,9 +305,27 @@ Abgedeckt:
 * Venue-Lookup-Cache (`is_venue_lookup_cached_as_failed()`/
   `cache_venue_lookup_failure()`) – 24h-Transient gegen wiederholte
   erfolglose matchInfo-API-Calls (3 Tests)
+* `BBB_Logo_Handler::write_file()` – WP-Filesystem-API statt direktem
+  `file_put_contents()`, inkl. Fehlerpropagation (3 Tests)
 
 
 == Changelog
+
+=== v1.1.7 (2026-07-19)
+
+* **Code Style: `file_put_contents()` → WP Filesystem API** – Beide
+  Vorkommen in `BBB_Logo_Handler::save_to_media_library()` nutzen jetzt
+  `$wp_filesystem->put_contents()` über eine neue private `write_file()`-
+  Methode (behebt `WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents`,
+  Punkt in Issue #2). Nebenbei Bugfix: ein Schreibfehler beim Aktualisieren
+  eines bestehenden Attachments wurde bisher stillschweigend ignoriert und
+  hätte zu Metadaten für eine nicht geschriebene Datei geführt – wird jetzt
+  korrekt propagiert.
+* **Code Style: `in_array()` strict-Vergleich** – Bereits vollständig erfüllt
+  (alle 19 Vorkommen im Projekt hatten schon `true` als drittem Parameter),
+  Punkt in Issue #2 als erledigt markiert.
+* `WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents`
+  aus `.phpcs.xml`-Excludes entfernt – wird jetzt aktiv geprüft.
 
 === v1.1.6 (2026-07-18)
 

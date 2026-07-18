@@ -36,3 +36,13 @@ if ( ! function_exists( 'is_wp_error' ) ) {
         return $thing instanceof WP_Error;
     }
 }
+
+// WP_Filesystem() normally initializes the global $wp_filesystem based on
+// the detected access method (direct, ftpext, ssh2, ...). In tests, the
+// global is set up manually per-test (Mockery double), so this stub is a
+// deliberate no-op — it must NOT overwrite a global the test already set.
+if ( ! function_exists( 'WP_Filesystem' ) ) {
+    function WP_Filesystem(): bool {
+        return true;
+    }
+}

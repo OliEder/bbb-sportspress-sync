@@ -120,7 +120,9 @@ class BBB_Logo_Handler {
         if ( $existing ) {
             $filepath = get_attached_file( $existing );
             if ( $filepath ) {
-                file_put_contents( $filepath, $png_data );
+                if ( ! $this->write_file( $filepath, $png_data ) ) {
+                    return false;
+                }
                 // Regenerate thumbnails.
                 require_once ABSPATH . 'wp-admin/includes/image.php';
                 $metadata = wp_generate_attachment_metadata( $existing, $filepath );
@@ -133,7 +135,7 @@ class BBB_Logo_Handler {
         $upload_dir = wp_upload_dir();
         $filepath   = $upload_dir['path'] . '/' . $filename;
 
-        if ( file_put_contents( $filepath, $png_data ) === false ) {
+        if ( ! $this->write_file( $filepath, $png_data ) ) {
             return false;
         }
 
@@ -155,6 +157,33 @@ class BBB_Logo_Handler {
         wp_update_attachment_metadata( $attachment_id, $metadata );
 
         return $attachment_id;
+    }
+
+    /**
+     * Write raw data to a file via the WordPress Filesystem API.
+     *
+     * Ersetzt direktes file_put_contents() (WPCS:
+     * WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents).
+     *
+     * @return bool True on success, false on failure or if the filesystem
+     *              is unavailable.
+     */
+    private function write_file( string $filepath, string $data ): bool {
+        if ( ! function_exists( 'WP_Filesystem' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/file.php';
+        }
+
+        global $wp_filesystem;
+
+        if ( ! $wp_filesystem ) {
+            WP_Filesystem();
+        }
+
+        if ( ! $wp_filesystem ) {
+            return false;
+        }
+
+        return (bool) $wp_filesystem->put_contents( $filepath, $data, FS_CHMOD_FILE );
     }
 
     /**
