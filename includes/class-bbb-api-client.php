@@ -145,9 +145,12 @@ class BBB_Api_Client {
         $url = "https://www.basketball-bund.net/media/team/{$team_permanent_id}/logo";
         $this->log( "GET {$url}" );
 
-        $response = wp_remote_get( $url, [
-            'timeout' => 15,
-        ]);
+        $response = wp_remote_get(
+            $url,
+            [
+				'timeout' => 15,
+			]
+        );
 
         if ( is_wp_error( $response ) ) {
             $this->log( 'Logo Error: ' . $response->get_error_message(), 'error' );
@@ -155,7 +158,7 @@ class BBB_Api_Client {
         }
 
         $code = wp_remote_retrieve_response_code( $response );
-        if ( $code !== 200 ) {
+        if ( 200 !== $code ) {
             return new WP_Error( 'bbb_logo_error', "HTTP {$code} für Logo Team {$team_permanent_id}" );
         }
 
@@ -234,11 +237,11 @@ class BBB_Api_Client {
         $data = $response['data'] ?? [];
 
         return [
-            'liga_data'  => $data['ligaData'] ?? [],
-            'spieltage'  => $data['spieltage'] ?? [],
-            'matches'    => $data['matches'] ?? [],
-            'prev'       => $data['prevSpieltag'] ?? null,
-            'next'       => $data['nextSpieltag'] ?? null,
+            'liga_data' => $data['ligaData'] ?? [],
+            'spieltage' => $data['spieltage'] ?? [],
+            'matches'   => $data['matches'] ?? [],
+            'prev'      => $data['prevSpieltag'] ?? null,
+            'next'      => $data['nextSpieltag'] ?? null,
         ];
     }
 
@@ -252,7 +255,7 @@ class BBB_Api_Client {
      * @return array|WP_Error { liga_data, rounds: [ spieltag => { name, matches[] } ] }
      */
     public function get_tournament_rounds( int $liga_id ): array|WP_Error {
-        // Lade Spieltag 1 → enthält spieltage[] mit allen verfügbaren Runden
+        // Lade Spieltag 1 → enthält spieltage[] mit allen verfügbaren Runden.
         $first = $this->get_liga_matchday( $liga_id, 1 );
 
         if ( is_wp_error( $first ) ) {
@@ -269,15 +272,19 @@ class BBB_Api_Client {
             ],
         ];
 
-        // Weitere Runden laden wenn vorhanden
+        // Weitere Runden laden wenn vorhanden.
         foreach ( $spieltage as $st ) {
             $nr = (int) ( $st['spieltag'] ?? 0 );
-            if ( $nr <= 1 || $nr === 0 ) continue;
+            if ( $nr <= 1 || 0 === $nr ) {
+				continue;
+            }
 
             $this->throttle();
             $round = $this->get_liga_matchday( $liga_id, $nr );
 
-            if ( is_wp_error( $round ) ) continue;
+            if ( is_wp_error( $round ) ) {
+				continue;
+            }
 
             $rounds[ $nr ] = [
                 'name'    => $st['bezeichnung'] ?? "{$nr}. Runde",
@@ -301,10 +308,13 @@ class BBB_Api_Client {
         $url = $this->base_url . $endpoint;
         $this->log( "GET {$url}" );
 
-        $response = wp_remote_get( $url, [
-            'timeout' => 30,
-            'headers' => [ 'Accept' => 'application/json' ],
-        ]);
+        $response = wp_remote_get(
+            $url,
+            [
+				'timeout' => 30,
+				'headers' => [ 'Accept' => 'application/json' ],
+			]
+        );
 
         return $this->handle_response( $response );
     }
@@ -318,7 +328,7 @@ class BBB_Api_Client {
         $code = wp_remote_retrieve_response_code( $response );
         $body = wp_remote_retrieve_body( $response );
 
-        if ( $code !== 200 ) {
+        if ( 200 !== $code ) {
             $this->log( "HTTP {$code}: {$body}", 'error' );
             return new WP_Error( 'bbb_api_http_error', "HTTP {$code}", [ 'status' => $code ] );
         }
@@ -330,7 +340,7 @@ class BBB_Api_Client {
             return new WP_Error( 'bbb_api_json_error', json_last_error_msg() );
         }
 
-        // BBB API: status "0" = success
+        // BBB API: status "0" = success.
         if ( ( $data['status'] ?? '1' ) !== '0' ) {
             $message = $data['message'] ?? 'Unknown API error';
             $this->log( "API Error: {$message}", 'error' );
@@ -358,7 +368,7 @@ class BBB_Api_Client {
             'level'   => $level,
             'message' => $message,
         ];
-        $logs = array_slice( $logs, -200 );
+        $logs   = array_slice( $logs, -200 );
         update_option( 'bbb_sync_logs', $logs, false );
     }
 }

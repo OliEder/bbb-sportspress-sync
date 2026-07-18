@@ -23,7 +23,7 @@ class BBB_Cron {
      * Cron callback: Führt den Sync aus.
      */
     public function run_sync(): void {
-        // Safety: Don't run if no teams registered
+        // Safety: Don't run if no teams registered.
         $own_teams = get_option( 'bbb_sync_own_teams', [] );
         if ( empty( $own_teams ) ) {
             return;
@@ -35,7 +35,7 @@ class BBB_Cron {
         $stats    = $engine->sync_all();
         $duration = round( microtime( true ) - $start, 2 );
 
-        // Log run to history
+        // Log run to history.
         $history   = get_option( 'bbb_sync_history', [] );
         $history[] = [
             'time'     => current_time( 'mysql' ),
@@ -43,7 +43,7 @@ class BBB_Cron {
             'stats'    => $stats,
             'trigger'  => 'cron',
         ];
-        $history = array_slice( $history, -50 );
+        $history   = array_slice( $history, -50 );
         update_option( 'bbb_sync_history', $history, false );
     }
 }

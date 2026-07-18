@@ -1,12 +1,33 @@
 {
-    "name": "bbb/sportspress-sync",
-    "description": "BBB SportsPress Sync – Dev/Test Dependencies",
+    "name": "olieder/bbb-sportspress-sync",
+    "description": "WordPress plugin to sync BBB data with SportsPress",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require-dev": {
-        "php": ">=8.1",
+        "php": ">=8.2",
         "brain/monkey": "^2.6",
-        "phpunit/phpunit": "^9.6",
-        "doctrine/instantiator": "^1.5"
+        "phpunit/phpunit": "^11.0",
+        "squizlabs/php_codesniffer": "^3.10",
+        "wp-coding-standards/wpcs": "^3.1",
+        "phpcsstandards/phpcsutils": "^1.0",
+        "phpcsstandards/phpcsextra": "^1.2"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "BBBSync\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "lint": "phpcs",
+        "lint-fix": "phpcbf",
+        "test": "phpunit",
+        "install-hooks": "cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit && echo 'Git pre-commit hook installed.'",
+        "post-install-cmd": "@install-hooks",
+        "post-update-cmd": "@install-hooks"
     }
 }

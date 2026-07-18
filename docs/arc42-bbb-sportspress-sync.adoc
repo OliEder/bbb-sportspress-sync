@@ -894,6 +894,13 @@ E2E-Tests als mögliche Erweiterung.
 |===
 | Version | Datum | Änderungen
 
+| v1.1.5
+| 2026-07-18
+| Security-Hardening (WordPress Coding Standards): `wp_unslash()`, `esc_attr`/`esc_html`/`absint`,
+Nonce-Handling, strikte `in_array()`-Vergleiche, PreparedSQL-Pattern. WPCS/phpcs CI-Pipeline
+ergänzt. PHPUnit-Tooling auf v11 angehoben, Testsuite unter `tests/Unit/` konsolidiert. Merge
+eines parallel entwickelten Branches (unabhängig von v1.1.4 Liga/Turnier-Fix entstanden).
+
 | v1.1.4
 | 2026-02-24
 | Fix Liga/Turnier-Erkennung: `tableExists` als `_bbb_table_exists` term_meta auf `sp_league`

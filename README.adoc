@@ -295,6 +295,17 @@ Abgedeckt:
 
 == Changelog
 
+=== v1.1.5 (2026-07-18)
+
+* **Security-Hardening (WordPress Coding Standards)** – Alle `WordPress.Security.*`
+  Verstöße behoben: `wp_unslash()`, `esc_attr()`/`esc_html()`/`absint()`, korrektes
+  Nonce-Handling, strikte `in_array()`-Vergleiche, PreparedSQL-Pattern.
+* **CI-Pipeline** – `phpcs`/WPCS-Check per GitHub Actions (`.github/workflows/code-quality.yml`).
+* **PHPUnit 11** – Test-Tooling auf PHPUnit 11 angehoben, Testsuite unter `tests/Unit/`
+  konsolidiert (zuvor teils `tests/unit/`), inkl. neuer Tests für API-Client,
+  Admin-Sanitizing und Spieler-Stat-Mapping.
+* Zusammengeführt aus einem parallel entwickelten Branch mit v1.1.4 (Liga/Turnier-Fix).
+
 === v1.1.4 (2026-02-24)
 
 * **Fix: Liga/Turnier-Erkennung** – `tableExists` wird als `_bbb_table_exists` term_meta gespeichert. Dashboard nutzt dieses Meta statt sp_table-Existenz. Behebt: Ligen ohne Spielplan-Endpoint wurden fälschlich als Turnier angezeigt.

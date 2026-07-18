@@ -1,0 +1,53 @@
+<?xml version="1.0"?>
+<ruleset name="BBB SportsPress Sync">
+    <description>PHPCS security and quality rules for the BBB SportsPress Sync plugin</description>
+
+    <!-- Scan these files/dirs -->
+    <file>bbb-sportspress-sync.php</file>
+    <file>includes/</file>
+
+    <!-- Show progress and sniff codes -->
+    <arg value="sp"/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+
+    <!-- WordPress security and core rules -->
+    <rule ref="WordPress">
+        <!-- ── Style / formatting ──────────────────────────────────── -->
+        <!-- Allow short array syntax [] -->
+        <exclude name="Universal.Arrays.DisallowShortArraySyntax"/>
+        <!-- Tabs vs spaces: we use spaces -->
+        <exclude name="Generic.WhiteSpace.DisallowSpaceIndent"/>
+        <!-- Short ternary (?:) is fine -->
+        <exclude name="Universal.Operators.DisallowShortTernary"/>
+
+        <!-- ── Documentation ───────────────────────────────────────── -->
+        <!-- We do not maintain full PHPDoc blocks -->
+        <exclude name="Squiz.Commenting.FileComment"/>
+        <exclude name="Squiz.Commenting.ClassComment"/>
+        <exclude name="Squiz.Commenting.FunctionComment"/>
+        <exclude name="Squiz.Commenting.VariableComment"/>
+        <exclude name="Generic.Commenting.DocComment"/>
+        <exclude name="WordPress.WP.I18n"/>
+
+        <!-- ── DB: informational only — not enforced as errors ─────── -->
+        <!-- DirectQuery and NoCaching are expected for a sync plugin   -->
+        <exclude name="WordPress.DB.DirectDatabaseQuery.DirectQuery"/>
+        <exclude name="WordPress.DB.DirectDatabaseQuery.NoCaching"/>
+        <exclude name="WordPress.DB.SlowDBQuery"/>
+
+        <!-- ── Misc low-value rules ────────────────────────────────── -->
+        <exclude name="WordPress.PHP.DevelopmentFunctions.error_log_error_log"/>
+        <exclude name="WordPress.WP.AlternativeFunctions.file_system_operations_file_put_contents"/>
+        <exclude name="WordPress.WP.GetMetaSingle"/>
+        <exclude name="Generic.CodeAnalysis.UnusedFunctionParameter"/>
+        <exclude name="WordPress.WP.CronInterval"/>
+    </rule>
+
+    <!-- WPCS paths: relative to project root, no global phpcs config-set needed -->
+    <config name="installed_paths" value="vendor/wp-coding-standards/wpcs,vendor/phpcsstandards/phpcsutils,vendor/phpcsstandards/phpcsextra"/>
+
+    <!-- Minimum PHP version -->
+    <config name="minimum_supported_wp_version" value="6.0"/>
+    <config name="testVersion" value="8.0-"/>
+</ruleset>
