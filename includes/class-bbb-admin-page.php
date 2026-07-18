@@ -1097,6 +1097,16 @@ class BBB_Admin_Page {
     // SHORTCODES CARD (Dashboard + ggf. andere Tabs)
     // ─────────────────────────────────────────
 
+    /**
+     * Liga-Typ aus dem `_bbb_table_exists` Term-Meta ableiten (aus API `tableExists`).
+     *
+     * '0' = explizit Pokal/KO-Wettbewerb → Turnier.
+     * Alles andere (inkl. leer/nicht gesetzt, '1') → Liga.
+     */
+    private function determine_league_type( string $table_exists_meta ): string {
+        return $table_exists_meta === '0' ? 'tournament' : 'league';
+    }
+
     private function render_shortcodes_card(): void {
         // Ligen aus sp_league mit _bbb_liga_id
         $leagues = get_terms([
@@ -1111,16 +1121,12 @@ class BBB_Admin_Page {
             $liga_id = get_term_meta( $league->term_id, '_bbb_liga_id', true );
             if ( ! $liga_id ) continue;
 
-            // Typ ermitteln: Gibt es eine sp_table für diese Liga?
-            $has_table = (bool) get_posts([
-                'post_type' => 'sp_table', 'posts_per_page' => 1, 'fields' => 'ids',
-                'tax_query' => [[ 'taxonomy' => 'sp_league', 'terms' => $league->term_id ]],
-            ]);
+            $table_exists_meta = get_term_meta( $league->term_id, '_bbb_table_exists', true );
 
             $rows[] = [
                 'liga_id' => $liga_id,
                 'name'    => $league->name,
-                'type'    => $has_table ? 'league' : 'tournament',
+                'type'    => $this->determine_league_type( $table_exists_meta ),
             ];
         }
 

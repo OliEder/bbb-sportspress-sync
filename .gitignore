@@ -17,6 +17,10 @@ wp-content/upgrade/
 node_modules/
 package-lock.json
 
+# PHP / Composer (Dev-/Test-Dependencies, nicht Teil des Plugin-Releases)
+vendor/
+.phpunit.result.cache
+
 # Logs
 *.log
 debug.log

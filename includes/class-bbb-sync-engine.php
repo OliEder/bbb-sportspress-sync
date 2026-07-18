@@ -1739,18 +1739,32 @@ class BBB_Sync_Engine {
         $name = $liga_data['liganame'] ?? "Liga {$bbb_liga_id}";
         $slug = 'bbb-' . $bbb_liga_id;
         $term = get_term_by( 'slug', $slug, 'sp_league' );
+
         if ( $term ) {
             if ( $term->name !== $name ) wp_update_term( $term->term_id, 'sp_league', [ 'name' => $name ] );
-            return $term->term_id;
+            $term_id = $term->term_id;
+        } else {
+            $result = wp_insert_term( $name, 'sp_league', [ 'slug' => $slug ] );
+            if ( is_wp_error( $result ) ) return false;
+            $term_id = $result['term_id'];
         }
-        $result = wp_insert_term( $name, 'sp_league', [ 'slug' => $slug ] );
-        if ( is_wp_error( $result ) ) return false;
 
-        // v3.5.1: akName + geschlecht direkt aus ligaData (immer vorhanden)
-        update_term_meta( $result['term_id'], '_bbb_liga_id', $bbb_liga_id );
-        update_term_meta( $result['term_id'], '_bbb_ak_name', $liga_data['akName'] ?? '' );
-        update_term_meta( $result['term_id'], '_bbb_geschlecht', $liga_data['geschlecht'] ?? '' );
-        return $result['term_id'];
+        // Meta immer aktualisieren (nicht nur bei Erstanlage)
+        update_term_meta( $term_id, '_bbb_liga_id', $bbb_liga_id );
+        update_term_meta( $term_id, '_bbb_ak_name', $liga_data['akName'] ?? '' );
+        update_term_meta( $term_id, '_bbb_geschlecht', $liga_data['geschlecht'] ?? '' );
+
+        // tableExists speichern: true/false/null aus API → '1'/'0'/'' als Meta
+        // WICHTIG: Nur explizites false = Pokal. null = unbekannt → als Liga behandeln.
+        $table_exists = $liga_data['tableExists'] ?? null;
+        if ( $table_exists === true ) {
+            update_term_meta( $term_id, '_bbb_table_exists', '1' );
+        } elseif ( $table_exists === false ) {
+            update_term_meta( $term_id, '_bbb_table_exists', '0' );
+        }
+        // null → nicht überschreiben (späterer Spielplan-Endpoint ist zuverlässiger)
+
+        return $term_id;
     }
 
     private function ensure_sp_season( array $liga_data ): int|false {
