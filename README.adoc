@@ -240,7 +240,8 @@ bbb-sportspress-sync/
 │   └── class-bbb-github-updater.php       # GitHub Release Update Checker
 ├── tests/
 │   ├── bootstrap.php                      # PHPUnit-Bootstrap (Brain Monkey)
-│   └── unit/                              # Isolierte Unit-Tests einzelner Methoden
+│   ├── wp-stubs.php                        # Minimale WP_Error/is_wp_error()-Stubs
+│   └── Unit/                               # Isolierte Unit-Tests einzelner Methoden
 └── docs/
     └── arc42-bbb-sportspress-sync.adoc    # Architekturdokumentation
 ----
@@ -272,17 +273,20 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.4, 2026-02-24):
+Aktueller Stand (Stand: v1.1.5, 2026-07-18):
 
 [source]
 ----
-PHPUnit 9.6.35 by Sebastian Bergmann and contributors.
+PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
 
-.........                                                           9 / 9 (100%)
+Runtime:       PHP 8.2.32
+Configuration: /app/phpunit.xml.dist
 
-Time: 00:00.10, Memory: 12.00 MB
+..................................                                34 / 34 (100%)
 
-OK (9 tests, 30 assertions)
+Time: 00:00.179, Memory: 22.00 MB
+
+OK (34 tests, 118 assertions)
 ----
 
 Abgedeckt:
@@ -291,6 +295,11 @@ Abgedeckt:
   `_bbb_table_exists` Persistierung (true/false/null) (6 Tests)
 * `BBB_Admin_Page::determine_league_type()` – Liga/Turnier-Ableitung aus
   `_bbb_table_exists` Meta (3 Tests)
+* `BBB_Admin_Page` – Sanitizing von Result-Slugs und Stat-Mapping-Eingaben (10 Tests)
+* `BBB_API_Client` – Club-/Team-Matches, Liga-Spielplan, WP_Error-Propagation bei
+  Non-200-Status, ungültigem JSON und API-Fehlerstatus (8 Tests)
+* `BBB_Player_Sync` – Stat-Alias-Mapping (Basketball-Statistiken, Wurfarten,
+  Freiwürfe) und Konstruktor-Verhalten (7 Tests)
 
 
 == Changelog

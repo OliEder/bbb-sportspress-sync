@@ -687,12 +687,16 @@ Das Sync-Plugin speist SP-Daten in BBB Live Tables ein:
 
 === Unit-Testing (PHPUnit + Brain Monkey)
 
-Seit v1.1.4 existiert eine PHPUnit-Testinfrastruktur (`composer.json`, `phpunit.xml`,
-`tests/bootstrap.php`). Statt einer echten WordPress-Installation werden globale
-WP-Funktionen (`get_term_by`, `wp_insert_term`, `update_term_meta`, …) per
+Seit v1.1.4 existiert eine PHPUnit-Testinfrastruktur (`composer.json`,
+`phpunit.xml.dist`, `tests/bootstrap.php`). Statt einer echten
+WordPress-Installation werden globale WP-Funktionen (`get_term_by`,
+`wp_insert_term`, `update_term_meta`, …) per
 https://github.com/Brain-WP/BrainMonkey[Brain Monkey] gemockt. Getestet werden gezielt
 ausgewählte, isoliert testbare Methoden über `ReflectionMethod` – kein vollständiger
-Test der gesamten Plugin-Klassen.
+Test der gesamten Plugin-Klassen. Mit v1.1.5 (Merge der Security-Hardening-Branch)
+wurde die Testsuite unter `tests/Unit/` konsolidiert und um API-Client-,
+Admin-Sanitizing- und Player-Sync-Tests erweitert; das Tooling wurde auf
+PHPUnit 11 angehoben.
 
 [source,bash]
 ----
@@ -700,7 +704,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (v1.1.4, 2026-02-24): **9 Tests, 30 Assertions, alle grün.**
+Aktueller Stand (v1.1.5, 2026-07-18): **34 Tests, 118 Assertions, alle grün.**
 
 [cols="2,1,3",options="header"]
 |===
@@ -716,6 +720,22 @@ Persistierung (true→'1', false→'0', null→kein Schreiben), Term-Rename via
 | 3
 | `determine_league_type()`: Ableitung Liga/Turnier aus `_bbb_table_exists` Meta
 ('1'→league, '0'→tournament, ''→league als Default)
+
+| `AdminSanitizeTest`
+| 10
+| Sanitizing von Result-Slugs (Kommaseparierung, Filterung leerer Einträge,
+`sanitize_title()`) und Stat-Mapping-Eingaben (JSON-Encoding, Filterung
+ungültiger/leerer Einträge)
+
+| `ApiClientTest`
+| 8
+| `BBB_API_Client`: Club-/Team-Matches, Liga-Spielplan, WP_Error-Propagation
+bei Non-200-Status, ungültigem JSON und API-Fehlerstatus ungleich 0
+
+| `PlayerSyncStatMappingTest`
+| 7
+| `BBB_Player_Sync`: Stat-Alias-Mapping für Basketball-Statistiken (Punkte,
+Einsatzzeit, Wurfarten, Freiwürfe) und Konstruktor-Verhalten
 |===
 
 **Hinweis:** Bei Tests, die für dieselbe gemockte Funktion sowohl eine generische
