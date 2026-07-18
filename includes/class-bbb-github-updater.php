@@ -19,14 +19,21 @@ if ( class_exists( 'BBB_GitHub_Updater' ) ) {
 class BBB_GitHub_Updater {
 
     private string $plugin_file;
-    private string $plugin_slug;
     private string $github_owner;
     private string $github_repo;
     private string $current_version;
 
+    /**
+     * Hinweis: Der GitHub-Repo-Name dient als kanonischer Plugin-Slug
+     * (statt dirname($plugin_file)). Läuft die Installation z.B. wegen
+     * eines früheren Update-Fehlers unter einem abweichenden Ordnernamen
+     * (z.B. "bbb-sportspress-sync-1"), heilt after_install() den
+     * Ordnernamen bei jedem weiteren Update wieder auf den korrekten
+     * Slug zurück, statt sich selbst-referenziell auf den falschen
+     * Namen zu verlassen.
+     */
     public function __construct( string $plugin_file, string $github_owner, string $github_repo, string $current_version ) {
         $this->plugin_file     = $plugin_file;
-        $this->plugin_slug     = dirname( $plugin_file );
         $this->github_owner    = $github_owner;
         $this->github_repo     = $github_repo;
         $this->current_version = $current_version;
@@ -48,7 +55,7 @@ class BBB_GitHub_Updater {
 
         if ( version_compare( $this->current_version, $remote['version'], '<' ) ) {
             $transient->response[ $this->plugin_file ] = (object) [
-                'slug'        => $this->plugin_slug,
+                'slug'        => $this->github_repo,
                 'plugin'      => $this->plugin_file,
                 'new_version' => $remote['version'],
                 'url'         => "https://github.com/{$this->github_owner}/{$this->github_repo}",
@@ -58,7 +65,7 @@ class BBB_GitHub_Updater {
             ];
         } else {
             $transient->no_update[ $this->plugin_file ] = (object) [
-                'slug'        => $this->plugin_slug,
+                'slug'        => $this->github_repo,
                 'plugin'      => $this->plugin_file,
                 'new_version' => $this->current_version,
                 'url'         => "https://github.com/{$this->github_owner}/{$this->github_repo}",
@@ -72,7 +79,7 @@ class BBB_GitHub_Updater {
         if ( 'plugin_information' !== $action ) {
 			return $result;
         }
-        if ( ( $args->slug ?? '' ) !== $this->plugin_slug ) {
+        if ( ( $args->slug ?? '' ) !== $this->github_repo ) {
 			return $result;
         }
 
@@ -83,7 +90,7 @@ class BBB_GitHub_Updater {
 
         return (object) [
             'name'          => $remote['name'],
-            'slug'          => $this->plugin_slug,
+            'slug'          => $this->github_repo,
             'version'       => $remote['version'],
             'author'        => '<a href="https://github.com/' . esc_attr( $this->github_owner ) . '">Oliver-Marcus Eder</a>',
             'homepage'      => "https://github.com/{$this->github_owner}/{$this->github_repo}",
@@ -106,24 +113,30 @@ class BBB_GitHub_Updater {
 
         global $wp_filesystem;
 
-        $install_dir = $result['destination'];
-        $proper_dir  = trailingslashit( dirname( $install_dir ) ) . $this->plugin_slug;
+        // Vor dem Move prüfen: active_plugins verweist noch auf den alten Pfad.
+        $was_active      = is_plugin_active( $this->plugin_file );
+        $install_dir     = $result['destination'];
+        $proper_dir      = trailingslashit( dirname( $install_dir ) ) . $this->github_repo;
+        $new_plugin_file = $this->plugin_file;
 
         if ( $install_dir !== $proper_dir ) {
             $wp_filesystem->move( $install_dir, $proper_dir );
             $result['destination']      = $proper_dir;
-            $result['destination_name'] = $this->plugin_slug;
+            $result['destination_name'] = $this->github_repo;
+            // Ordner wurde umbenannt → Reaktivierung muss den neuen Pfad nutzen,
+            // der alte $this->plugin_file existiert danach nicht mehr.
+            $new_plugin_file = trailingslashit( $this->github_repo ) . basename( $this->plugin_file );
         }
 
-        if ( is_plugin_active( $this->plugin_file ) ) {
-            activate_plugin( $this->plugin_file );
+        if ( $was_active ) {
+            activate_plugin( $new_plugin_file );
         }
 
         return $result;
     }
 
     private function get_remote_info(): ?array {
-        $transient_key = "bbb_github_update_{$this->plugin_slug}";
+        $transient_key = "bbb_github_update_{$this->github_repo}";
         $cached        = get_transient( $transient_key );
         if ( false !== $cached ) {
 			return $cached;

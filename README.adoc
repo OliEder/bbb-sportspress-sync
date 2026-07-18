@@ -273,7 +273,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.7, 2026-07-19):
+Aktueller Stand (Stand: v1.1.8, 2026-07-19):
 
 [source]
 ----
@@ -310,6 +310,21 @@ Abgedeckt:
 
 
 == Changelog
+
+=== v1.1.8 (2026-07-19)
+
+* **Fix: GitHub-Updater Ordner-Self-Healing** – `BBB_GitHub_Updater` nutzte
+  bisher `dirname($plugin_file)` (den aktuell aktiven Ordnernamen) als
+  Plugin-Slug. Lief eine Installation durch einen früheren Update-Fehler
+  unter einem abweichenden Ordnernamen (z.B. `bbb-sportspress-sync-1`),
+  konnte sich der Updater dadurch nie mehr selbst korrigieren, da er sich
+  self-referenziell auf den falschen Namen verließ. Der Plugin-Slug ist
+  jetzt fest der GitHub-Repo-Name (`bbb-sportspress-sync`); `after_install()`
+  benennt einen abweichenden Ordner bei jedem weiteren Update wieder auf den
+  korrekten Namen um.
+* **Fix: Reaktivierung nach Ordner-Rename** – Wird der Ordner umbenannt,
+  reaktiviert `after_install()` das Plugin jetzt über den neuen Pfad statt
+  über den alten, nicht mehr existierenden Basename.
 
 === v1.1.7 (2026-07-19)
 
