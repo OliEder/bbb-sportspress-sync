@@ -685,6 +685,45 @@ Das Sync-Plugin speist SP-Daten in BBB Live Tables ein:
 | `sp_league` Terms mit `_bbb_liga_id`
 |===
 
+=== Unit-Testing (PHPUnit + Brain Monkey)
+
+Seit v1.1.4 existiert eine PHPUnit-Testinfrastruktur (`composer.json`, `phpunit.xml`,
+`tests/bootstrap.php`). Statt einer echten WordPress-Installation werden globale
+WP-Funktionen (`get_term_by`, `wp_insert_term`, `update_term_meta`, …) per
+https://github.com/Brain-WP/BrainMonkey[Brain Monkey] gemockt. Getestet werden gezielt
+ausgewählte, isoliert testbare Methoden über `ReflectionMethod` – kein vollständiger
+Test der gesamten Plugin-Klassen.
+
+[source,bash]
+----
+composer install
+docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
+----
+
+Aktueller Stand (v1.1.4, 2026-02-24): **9 Tests, 30 Assertions, alle grün.**
+
+[cols="2,1,3",options="header"]
+|===
+| Testklasse | Tests | Deckt ab
+
+| `EnsureSpLeagueTest`
+| 6
+| `ensure_sp_league()`: Meta-Update bei Erst-/Folgesync, `_bbb_table_exists`
+Persistierung (true→'1', false→'0', null→kein Schreiben), Term-Rename via
+`wp_update_term()`, WP_Error-Handling bei `wp_insert_term()`
+
+| `DetermineLeagueTypeTest`
+| 3
+| `determine_league_type()`: Ableitung Liga/Turnier aus `_bbb_table_exists` Meta
+('1'→league, '0'→tournament, ''→league als Default)
+|===
+
+**Hinweis:** Bei Tests, die für dieselbe gemockte Funktion sowohl eine generische
+Catch-All-Erwartung (`zeroOrMoreTimes()`) als auch eine spezifische
+Argument-Erwartung (`once()->with(...)`) benötigen, muss die spezifische
+Erwartung *zuerst* registriert werden – Mockery prüft Erwartungen in
+Registrierungsreihenfolge (siehe `ExpectationDirector::_findExpectationIn()`).
+
 
 == Architekturentscheidungen
 
@@ -794,9 +833,11 @@ Das Sync-Plugin speist SP-Daten in BBB Live Tables ein:
 | Rendering direkt in PHP statt Template-Engine. Mögliche Aufteilung in Tab-Klassen.
 
 | R-4
-| Kein automatisiertes Testing
+| Automatisiertes Testing nur punktuell (seit v1.1.4 PHPUnit/Brain Monkey für
+einzelne Methoden, 9 Tests). Kein Integrations-/E2E-Test gegen echtes WordPress.
 | Mittel
-| Docker-Setup vorhanden. E2E-Tests als mögliche Erweiterung.
+| Docker-Setup vorhanden. Weitere Unit-Tests für kritische Sync-Pfade und
+E2E-Tests als mögliche Erweiterung.
 
 | R-5
 | Geocoding via Nominatim hat Rate Limits

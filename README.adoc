@@ -238,6 +238,9 @@ bbb-sportspress-sync/
 │   ├── class-bbb-tables-integration.php   # Filter-Callbacks für BBB Live Tables
 │   ├── class-bbb-goodlayers-bracket.php   # Goodlayers PB Elemente (SP-angereichert)
 │   └── class-bbb-github-updater.php       # GitHub Release Update Checker
+├── tests/
+│   ├── bootstrap.php                      # PHPUnit-Bootstrap (Brain Monkey)
+│   └── unit/                              # Isolierte Unit-Tests einzelner Methoden
 └── docs/
     └── arc42-bbb-sportspress-sync.adoc    # Architekturdokumentation
 ----
@@ -256,6 +259,38 @@ docker compose up -d
 
 WordPress unter `http://localhost:8080` (Login: admin/admin). +
 Beide Plugins werden automatisch per Volume-Mount eingebunden.
+
+=== Unit-Tests (PHPUnit + Brain Monkey)
+
+Isolierte Unit-Tests für gezielt ausgewählte, testbare Methoden – kein vollständiger
+Test der gesamten Plugin-Klassen, keine echte WordPress-Installation nötig
+(WP-Funktionen werden per Brain Monkey gemockt).
+
+[source,bash]
+----
+composer install
+docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
+----
+
+Aktueller Stand (Stand: v1.1.4, 2026-02-24):
+
+[source]
+----
+PHPUnit 9.6.35 by Sebastian Bergmann and contributors.
+
+.........                                                           9 / 9 (100%)
+
+Time: 00:00.10, Memory: 12.00 MB
+
+OK (9 tests, 30 assertions)
+----
+
+Abgedeckt:
+
+* `BBB_Sync_Engine::ensure_sp_league()` – Meta-Update bei Erstanlage/Update,
+  `_bbb_table_exists` Persistierung (true/false/null) (6 Tests)
+* `BBB_Admin_Page::determine_league_type()` – Liga/Turnier-Ableitung aus
+  `_bbb_table_exists` Meta (3 Tests)
 
 
 == Changelog
