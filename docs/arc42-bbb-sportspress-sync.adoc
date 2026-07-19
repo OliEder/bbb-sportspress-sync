@@ -576,6 +576,11 @@ wp-local/
 | `_bbb_match_id`
 | `find_sp_event()`
 
+| Match (Liga-Zuordnung)
+| `sp_event`
+| `_bbb_liga_id` (post_meta)
+| —
+
 | Spieler
 | `sp_player`
 | `_bbb_person_id`
@@ -606,6 +611,8 @@ wp-local/
 | `_bbb_liga_id` (post_meta)
 | `find_sp_table_by_liga_id()`
 |===
+
+**REST-Sichtbarkeit (seit v1.1.10):** Alle oben aufgeführten `_bbb_*`-Meta-Felder sind seit v1.1.10 per `register_post_meta()` / `register_term_meta()` (`includes/class-bbb-meta-registration.php`) für die REST API registriert (`show_in_rest => true` + `auth_callback`). Zuvor lieferte die REST API für diese Felder `rest_no_route`, da mit Unterstrich beginnende Meta-Keys von WordPress als „protected meta" behandelt werden und ohne explizite Registrierung unsichtbar bleiben – auch mit `show_in_rest => true` am Meta-Wert selbst. Ob `sp_team`, `sp_event`, `sp_player`, `sp_list`, `sp_table`, `sp_league` und `sp_venue` selbst (als von SportsPress registrierte Post Types/Taxonomies) `show_in_rest => true` gesetzt haben, liegt außerhalb dieses Plugins und ist hier nicht geprüft – bei Bedarf auf der Live-Site via `GET /wp-json/wp/v2/types` bzw. `GET /wp-json/wp/v2/taxonomies` verifizieren.
 
 === Sync-User
 

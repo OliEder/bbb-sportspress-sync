@@ -273,7 +273,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.8, 2026-07-19):
+Aktueller Stand (Stand: v1.1.10, 2026-07-19):
 
 [source]
 ----
@@ -282,15 +282,19 @@ PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.2.32
 Configuration: /app/phpunit.xml.dist
 
-............................................                             44 / 44 (100%)
+..............................................................    62 / 62 (100%)
 
-Time: 00:00.179, Memory: 24.00 MB
+Time: 00:00.262, Memory: 24.00 MB
 
-OK (44 tests, 136 assertions)
+OK (62 tests, 235 assertions)
 ----
 
 Abgedeckt:
 
+* `BBB_Meta_Registration::register_meta()` – REST-Sichtbarkeit der `_bbb_*`-
+  Meta-Felder via `register_post_meta()`/`register_term_meta()`, Schema
+  (`type`, `single`, `show_in_rest`) sowie `auth_callback`-Capability-Checks
+  für post_meta (`edit_posts`) und term_meta (`manage_options`) (4 Tests)
 * `BBB_Sync_Engine::ensure_sp_league()` – Meta-Update bei Erstanlage/Update,
   `_bbb_table_exists` Persistierung (true/false/null) (6 Tests)
 * `BBB_Admin_Page::determine_league_type()` – Liga/Turnier-Ableitung aus
@@ -310,6 +314,48 @@ Abgedeckt:
 
 
 == Changelog
+
+=== v1.1.10 (2026-07-19)
+
+* **Neu: REST-Sichtbarkeit für BBB-Sync-Meta-Felder** – `BBB_Meta_Registration`
+  registriert alle `_bbb_*`-Meta-Felder per `register_post_meta()`/
+  `register_term_meta()` mit `show_in_rest => true`. Zuvor lieferte die REST
+  API für diese Felder `rest_no_route`, da mit Unterstrich beginnende
+  Meta-Keys von WordPress als „protected meta" behandelt werden und ohne
+  explizite Registrierung inkl. `auth_callback` unsichtbar bleiben – auch
+  mit `show_in_rest => true` am einzelnen Meta-Wert.
+** Betroffen: `sp_team._bbb_team_permanent_id`, `sp_event._bbb_match_id`,
+   `sp_event._bbb_liga_id`, `sp_player._bbb_person_id`,
+   `sp_list._bbb_team_wp_id`, `sp_table._bbb_liga_id` (post_meta),
+   `sp_league._bbb_liga_id`, `sp_venue._bbb_spielfeld_id` (term_meta)
+** post_meta: `auth_callback` prüft `current_user_can('edit_posts')`;
+   term_meta: `current_user_can('manage_options')` (analog zur bestehenden
+   Capability-Prüfung in den Venue-Meta-Boxen)
+** Keine Datenmigration nötig – bestehende Werte in der DB bleiben
+   unverändert, nur die REST-Sichtbarkeit ändert sich
+** Hinweis: ob `sp_team`, `sp_event`, `sp_player`, `sp_list`, `sp_table`,
+   `sp_league`, `sp_venue` selbst (von SportsPress registriert) ihrerseits
+   `show_in_rest => true` gesetzt haben, liegt außerhalb dieses Plugins –
+   bei Bedarf live via `GET /wp-json/wp/v2/types` bzw.
+   `GET /wp-json/wp/v2/taxonomies` prüfen
+
+=== v1.1.9 (2026-07-19)
+
+* **Neu: WordPress Abilities API Integration** – `BBB_Abilities` registriert
+  (ab WP 6.9) drei Abilities unter der Kategorie `bbb-sportspress-sync`,
+  damit KI-Agenten/MCP-Clients über `/wp-json/wp-abilities/v1/` mit dem
+  Sync interagieren können, ohne eigene REST-Endpunkte zu benötigen:
+** `bbb-sportspress-sync/trigger-sync` – plant einen einmaligen Sync-Lauf
+   über WP-Cron ein (nutzt den bestehenden `bbb_sync_cron_event`-Hook und
+   den Progress-Lock aus `ajax_start_sync()`)
+** `bbb-sportspress-sync/get-sync-status` – aktueller Fortschritt + letzter
+   abgeschlossener Lauf
+** `bbb-sportspress-sync/get-sync-history` – letzte N Sync-Läufe
++
+Auf WP < 6.9 bleibt die Klasse inert (die Abilities-API-Hooks feuern
+schlicht nicht), daher kein `Requires at least`-Bump nötig. Alle drei
+Abilities erfordern `manage_options` (gleiche Capability wie die
+bestehenden Admin-AJAX-Handler).
 
 === v1.1.8 (2026-07-19)
 

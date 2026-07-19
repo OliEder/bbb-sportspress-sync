@@ -10,7 +10,7 @@
 
 // WordPress constants used by the plugin files
 define( 'ABSPATH', __DIR__ . '/' );
-define( 'BBB_SYNC_VERSION', '1.1.8' );
+define( 'BBB_SYNC_VERSION', '1.1.10' );
 define( 'BBB_API_BASE_URL', 'https://www.basketball-bund.net/rest' );
 define( 'WP_DEBUG', false );
 define( 'DAY_IN_SECONDS', 86400 );
@@ -36,3 +36,5 @@ require_once $plugin_includes . 'class-bbb-logo-handler.php';
 require_once $plugin_includes . 'class-bbb-player-sync.php';
 require_once $plugin_includes . 'class-bbb-sync-engine.php';
 require_once $plugin_includes . 'class-bbb-admin-page.php';
+require_once $plugin_includes . 'class-bbb-abilities.php';
+require_once $plugin_includes . 'class-bbb-meta-registration.php';
