@@ -273,7 +273,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.10, 2026-07-19):
+Aktueller Stand (Stand: v1.1.11, 2026-07-19):
 
 [source]
 ----
@@ -282,11 +282,12 @@ PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.2.32
 Configuration: /app/phpunit.xml.dist
 
-..............................................................    62 / 62 (100%)
+................................................................. 65 / 71 ( 91%)
+......                                                            71 / 71 (100%)
 
-Time: 00:00.262, Memory: 24.00 MB
+Time: 00:00.619, Memory: 24.00 MB
 
-OK (62 tests, 235 assertions)
+OK (71 tests, 313 assertions)
 ----
 
 Abgedeckt:
@@ -295,6 +296,11 @@ Abgedeckt:
   Meta-Felder via `register_post_meta()`/`register_term_meta()`, Schema
   (`type`, `single`, `show_in_rest`) sowie `auth_callback`-Capability-Checks
   für post_meta (`edit_posts`) und term_meta (`manage_options`) (4 Tests)
+* `BBB_SportsPress_Meta_Registration::register_meta()` – REST-Sichtbarkeit
+  von 11 nativen SportsPress-Meta-Feldern (`sp_event`, `sp_team`) via
+  `register_post_meta()`, inkl. Mehrfachwert-Felder (`single => false`),
+  `object`-Typ-Felder ohne festes Schema und `sp_main_result` als
+  String-Slug (9 Tests)
 * `BBB_Sync_Engine::ensure_sp_league()` – Meta-Update bei Erstanlage/Update,
   `_bbb_table_exists` Persistierung (true/false/null) (6 Tests)
 * `BBB_Admin_Page::determine_league_type()` – Liga/Turnier-Ableitung aus
@@ -314,6 +320,36 @@ Abgedeckt:
 
 
 == Changelog
+
+=== v1.1.11 (2026-07-19)
+
+* **Neu: REST-Sichtbarkeit für native SportsPress-Meta-Felder** –
+  `BBB_SportsPress_Meta_Registration` registriert 11 von SportsPress selbst
+  definierte Meta-Felder per `register_post_meta()` mit
+  `show_in_rest => true`. Ergänzt `BBB_Meta_Registration` (v1.1.10, dort:
+  plugineigene `_bbb_*`-IDs) um die nativen SportsPress-Datenfelder
+  (Team-Zuordnung, Ergebnisse, Spieler-Performance, Team-Stammdaten).
+** Betroffen (`sp_event`): `sp_team`, `sp_player` (jeweils Mehrfachwerte),
+   `sp_players` (Spieler-Performance-Stats, verschachtelt), `sp_results`
+   (Ergebnis je Spalte), `sp_status`, `sp_main_result`, `sp_day`, `sp_format`
+** Betroffen (`sp_team`): `sp_abbreviation`, `sp_short_name`, `sp_url`
+** `sp_main_result` ist als `string` registriert: das Feld enthält den
+   Slug der Haupt-Ergebnis-Spalte (z.B. `pts`, `t`) und dient als Schlüssel
+   in `sp_results` – nicht die Punktzahl. Die Punktzahlen selbst stehen als
+   Strings in `sp_results` (SportsPress-Konvention).
+** `auth_callback` prüft einheitlich `current_user_can('edit_posts')`
+   (gleiche Konvention wie bei `BBB_Meta_Registration`)
+** Bewusst ausgeschlossen: Venue-Adress-/Geo-Felder (`sp_address`,
+   `sp_latitude`, `sp_longitude`) – SportsPress speichert diese über eine
+   WP-Option (`taxonomy_{term_id}`), nicht als echtes Term-Meta;
+   `register_term_meta()` kann das nicht erfassen. Separates künftiges
+   Vorhaben mit anderer Technik (`register_rest_field()` + Options-Getter).
+** Bekannte Einschränkung: `sp_players`/`sp_results` sind als `object`-Typ
+   ohne festes Schema registriert (Sub-Struktur ist dynamisch je
+   Liga-/Performance-Konfiguration) – Lesen über REST ist vorgesehen,
+   Schreiben über REST kann WP für diese zwei Felder ohne Schema ablehnen.
+   Die tatsächliche REST-Ausgabe wurde bisher nicht gegen eine Live-Instanz
+   verifiziert (Unit-Tests mocken `register_post_meta()`).
 
 === v1.1.10 (2026-07-19)
 
