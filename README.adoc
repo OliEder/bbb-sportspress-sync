@@ -104,7 +104,7 @@ Teams per Club-ID aus der BBB-API erkennen. Einzeln aktivierbar/deaktivierbar. N
 | Club-ID | – | BBB-Vereins-ID (Pflichtfeld)
 | Zeitraum (Tage) | 365 | Sync-Horizont (30–730)
 | Auto-Sync (h) | 6 | Cron-Intervall (1–168)
-| Ergebnis-Felder | pts | Komma-getrennte SP-Result-Slugs
+| Ergebnis-Felder | pts | Komma-getrennte SP-Result-Slugs; das SportsPress-Primärergebnis wird immer zusätzlich beschrieben
 | Spieler aus Boxscore | Aus | Spieler-Import aktivieren
 | Nur eigene Spieler | An | Nur Spieler eigener Teams importieren (DSGVO-empfohlen)
 | Statistik-Mapping | Standard | Zuordnung BBB → SportsPress Performance-Slugs
@@ -273,7 +273,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.8, 2026-07-19):
+Aktueller Stand (Stand: v1.1.12, 2026-07-19):
 
 [source]
 ----
@@ -282,15 +282,30 @@ PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.2.32
 Configuration: /app/phpunit.xml.dist
 
-............................................                             44 / 44 (100%)
+................................................................. 65 / 82 ( 79%)
+.................                                                 82 / 82 (100%)
 
-Time: 00:00.179, Memory: 24.00 MB
+Time: 00:01.005, Memory: 24.00 MB
 
-OK (44 tests, 136 assertions)
+OK (82 tests, 332 assertions)
 ----
 
 Abgedeckt:
 
+* `BBB_Meta_Registration::register_meta()` – REST-Sichtbarkeit der `_bbb_*`-
+  Meta-Felder via `register_post_meta()`/`register_term_meta()`, Schema
+  (`type`, `single`, `show_in_rest`) sowie `auth_callback`-Capability-Checks
+  für post_meta (`edit_posts`) und term_meta (`manage_options`) (4 Tests)
+* `BBB_SportsPress_Meta_Registration::register_meta()` – REST-Sichtbarkeit
+  von 11 nativen SportsPress-Meta-Feldern (`sp_event`, `sp_team`) via
+  `register_post_meta()`, inkl. Mehrfachwert-Felder (`single => false`),
+  `object`-Typ-Felder ohne festes Schema und `sp_main_result` als
+  String-Slug (9 Tests)
+* `BBB_Sync_Engine::get_sportspress_primary_result_slug()`/
+  `get_target_result_slugs()`/`get_main_result_slug()` – Ermittlung der
+  Ergebnis-Spalten: SportsPress-Primärergebnis (Option bzw. letzte Spalte,
+  tote Slugs werden verworfen), Ziel-Slugs ohne Duplikate, Fallback für
+  `sp_main_result` (11 Tests)
 * `BBB_Sync_Engine::ensure_sp_league()` – Meta-Update bei Erstanlage/Update,
   `_bbb_table_exists` Persistierung (true/false/null) (6 Tests)
 * `BBB_Admin_Page::determine_league_type()` – Liga/Turnier-Ableitung aus
@@ -310,6 +325,98 @@ Abgedeckt:
 
 
 == Changelog
+
+=== v1.1.12 (2026-07-19)
+
+* **Fix: Teaser zeigen das Ergebnis zuverlässig an** – SportsPress zeigt in
+  Teasern und Event-Blöcken nur die Ergebnis-Spalte, die in der Option
+  `sportspress_primary_result` steht (ohne Option: die letzte Spalte). Das
+  Plugin schrieb bisher nur in die selbst konfigurierten Spalten; lag das
+  Primärergebnis nicht darunter, stand das Ergebnis im Editor, der Teaser
+  blieb aber leer. Der Sync und „Ergebnis-Keys reparieren" schreiben jetzt
+  immer zusätzlich in das SportsPress-Primärergebnis
+  (`BBB_Sync_Engine::get_target_result_slugs()`).
+** Der Fallback bei leerer Einstellung entspricht jetzt SportsPress (letzte
+   Spalte statt „erster `sp_result`" bzw. fest `pts`). Verweist die Option auf
+   eine nicht mehr vorhandene Spalte, wird die letzte vorhandene verwendet.
+** Korrektur zu v1.1.11: `sp_main_result` ist kein SportsPress-Core-Feld und
+   wird dort nicht gelesen (geprüft in `SP_Event`, den API-/Template-Funktionen
+   und `event-blocks.php`). Es ist eine Konvention dieses Plugins und hat keinen
+   Einfluss auf die Teaser-Anzeige. Die REST-Registrierung bleibt bestehen.
+** Admin-Hilfetext bei „Ergebnis-Felder" an das tatsächliche Verhalten
+   angepasst.
+
+=== v1.1.11 (2026-07-19)
+
+* **Neu: REST-Sichtbarkeit für native SportsPress-Meta-Felder** –
+  `BBB_SportsPress_Meta_Registration` registriert 11 von SportsPress selbst
+  definierte Meta-Felder per `register_post_meta()` mit
+  `show_in_rest => true`. Ergänzt `BBB_Meta_Registration` (v1.1.10, dort:
+  plugineigene `_bbb_*`-IDs) um die nativen SportsPress-Datenfelder
+  (Team-Zuordnung, Ergebnisse, Spieler-Performance, Team-Stammdaten).
+** Betroffen (`sp_event`): `sp_team`, `sp_player` (jeweils Mehrfachwerte),
+   `sp_players` (Spieler-Performance-Stats, verschachtelt), `sp_results`
+   (Ergebnis je Spalte), `sp_status`, `sp_main_result`, `sp_day`, `sp_format`
+** Betroffen (`sp_team`): `sp_abbreviation`, `sp_short_name`, `sp_url`
+** `sp_main_result` ist als `string` registriert: das Feld enthält den
+   Slug der Haupt-Ergebnis-Spalte (z.B. `pts`, `t`) und dient als Schlüssel
+   in `sp_results` – nicht die Punktzahl. Die Punktzahlen selbst stehen als
+   Strings in `sp_results` (SportsPress-Konvention).
+** `auth_callback` prüft einheitlich `current_user_can('edit_posts')`
+   (gleiche Konvention wie bei `BBB_Meta_Registration`)
+** Bewusst ausgeschlossen: Venue-Adress-/Geo-Felder (`sp_address`,
+   `sp_latitude`, `sp_longitude`) – SportsPress speichert diese über eine
+   WP-Option (`taxonomy_{term_id}`), nicht als echtes Term-Meta;
+   `register_term_meta()` kann das nicht erfassen. Separates künftiges
+   Vorhaben mit anderer Technik (`register_rest_field()` + Options-Getter).
+** Bekannte Einschränkung: `sp_players`/`sp_results` sind als `object`-Typ
+   ohne festes Schema registriert (Sub-Struktur ist dynamisch je
+   Liga-/Performance-Konfiguration) – Lesen über REST ist vorgesehen,
+   Schreiben über REST kann WP für diese zwei Felder ohne Schema ablehnen.
+   Die tatsächliche REST-Ausgabe wurde bisher nicht gegen eine Live-Instanz
+   verifiziert (Unit-Tests mocken `register_post_meta()`).
+
+=== v1.1.10 (2026-07-19)
+
+* **Neu: REST-Sichtbarkeit für BBB-Sync-Meta-Felder** – `BBB_Meta_Registration`
+  registriert alle `_bbb_*`-Meta-Felder per `register_post_meta()`/
+  `register_term_meta()` mit `show_in_rest => true`. Zuvor lieferte die REST
+  API für diese Felder `rest_no_route`, da mit Unterstrich beginnende
+  Meta-Keys von WordPress als „protected meta" behandelt werden und ohne
+  explizite Registrierung inkl. `auth_callback` unsichtbar bleiben – auch
+  mit `show_in_rest => true` am einzelnen Meta-Wert.
+** Betroffen: `sp_team._bbb_team_permanent_id`, `sp_event._bbb_match_id`,
+   `sp_event._bbb_liga_id`, `sp_player._bbb_person_id`,
+   `sp_list._bbb_team_wp_id`, `sp_table._bbb_liga_id` (post_meta),
+   `sp_league._bbb_liga_id`, `sp_venue._bbb_spielfeld_id` (term_meta)
+** post_meta: `auth_callback` prüft `current_user_can('edit_posts')`;
+   term_meta: `current_user_can('manage_options')` (analog zur bestehenden
+   Capability-Prüfung in den Venue-Meta-Boxen)
+** Keine Datenmigration nötig – bestehende Werte in der DB bleiben
+   unverändert, nur die REST-Sichtbarkeit ändert sich
+** Hinweis: ob `sp_team`, `sp_event`, `sp_player`, `sp_list`, `sp_table`,
+   `sp_league`, `sp_venue` selbst (von SportsPress registriert) ihrerseits
+   `show_in_rest => true` gesetzt haben, liegt außerhalb dieses Plugins –
+   bei Bedarf live via `GET /wp-json/wp/v2/types` bzw.
+   `GET /wp-json/wp/v2/taxonomies` prüfen
+
+=== v1.1.9 (2026-07-19)
+
+* **Neu: WordPress Abilities API Integration** – `BBB_Abilities` registriert
+  (ab WP 6.9) drei Abilities unter der Kategorie `bbb-sportspress-sync`,
+  damit KI-Agenten/MCP-Clients über `/wp-json/wp-abilities/v1/` mit dem
+  Sync interagieren können, ohne eigene REST-Endpunkte zu benötigen:
+** `bbb-sportspress-sync/trigger-sync` – plant einen einmaligen Sync-Lauf
+   über WP-Cron ein (nutzt den bestehenden `bbb_sync_cron_event`-Hook und
+   den Progress-Lock aus `ajax_start_sync()`)
+** `bbb-sportspress-sync/get-sync-status` – aktueller Fortschritt + letzter
+   abgeschlossener Lauf
+** `bbb-sportspress-sync/get-sync-history` – letzte N Sync-Läufe
++
+Auf WP < 6.9 bleibt die Klasse inert (die Abilities-API-Hooks feuern
+schlicht nicht), daher kein `Requires at least`-Bump nötig. Alle drei
+Abilities erfordern `manage_options` (gleiche Capability wie die
+bestehenden Admin-AJAX-Handler).
 
 === v1.1.8 (2026-07-19)
 

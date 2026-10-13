@@ -3,7 +3,7 @@
  * Plugin Name:       BBB SportsPress Sync
  * Plugin URI:        https://github.com/OliEder/bbb-sportspress-sync
  * Description:       Synchronisiert Vereinsdaten aus der Basketball-Bund.net (BBB) REST API in SportsPress – Teams, Spielplan, Ergebnisse, Spieler, Statistiken und Spielorte. Benötigt SportsPress und BBB Live Tables.
- * Version:           1.1.8
+ * Version:           1.1.12
  * Author:            Oliver-Marcus Eder
  * Author URI:        https://github.com/OliEder
  * License:           GPL-2.0+
@@ -17,7 +17,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'BBB_SYNC_VERSION', '1.1.8' );
+define( 'BBB_SYNC_VERSION', '1.1.12' );
 define( 'BBB_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'BBB_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'BBB_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
@@ -113,6 +113,9 @@ add_action(
 		require_once BBB_PLUGIN_DIR . 'includes/class-bbb-logo-handler.php';
 		require_once BBB_PLUGIN_DIR . 'includes/class-bbb-player-sync.php';
 		require_once BBB_PLUGIN_DIR . 'includes/class-bbb-cron.php';
+		require_once BBB_PLUGIN_DIR . 'includes/class-bbb-abilities.php';
+		require_once BBB_PLUGIN_DIR . 'includes/class-bbb-meta-registration.php';
+		require_once BBB_PLUGIN_DIR . 'includes/class-bbb-sportspress-meta-registration.php';
 
 		// ── BBB Live Tables Integration ──
 		// Filter-Callbacks die SP-Daten (Logos, Links, Farben) in das Standalone-Plugin einspeisen.
@@ -142,6 +145,9 @@ add_action(
 		}
 
 		new BBB_Cron();
+		new BBB_Abilities();
+		new BBB_Meta_Registration();
+		new BBB_SportsPress_Meta_Registration();
 	}
 );
 

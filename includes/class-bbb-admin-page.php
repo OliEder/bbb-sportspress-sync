@@ -1084,7 +1084,8 @@ class BBB_Admin_Page {
                                 </fieldset>
                                 <p class="description">In welche SP-Ergebnis-Spalten soll das Gesamtergebnis geschrieben werden?<br>
                                     Typisch bei Basketball: <code>t</code> (Total) + ggf. <code>pts</code>.<br>
-                                    Leer = automatisch erster sp_result Post.</p>
+                                    Das in SportsPress eingestellte <strong>Primärergebnis</strong> (ohne Einstellung: die letzte Spalte) wird immer zusätzlich beschrieben, weil Teaser nur diese Spalte anzeigen.<br>
+                                    Leer = nur das SportsPress-Primärergebnis.</p>
                             <?php else : ?>
                                 <p class="description">Keine sp_result Posts gefunden. Erst einen Sync durchführen.</p>
                             <?php endif; ?>
@@ -1481,8 +1482,6 @@ class BBB_Admin_Page {
     private function handle_repair_result_keys(): void {
         $engine = new BBB_Sync_Engine();
 
-        $configured_slugs = $engine->get_result_slugs();
-
         $result_posts = get_posts(
             [
 				'post_type'      => 'sp_result',
@@ -1500,8 +1499,13 @@ class BBB_Admin_Page {
             exit;
         }
 
-        $valid_slugs  = wp_list_pluck( $result_posts, 'post_name' );
-        $target_slugs = ! empty( $configured_slugs ) ? $configured_slugs : [ $result_posts[0]->post_name ];
+        $valid_slugs = wp_list_pluck( $result_posts, 'post_name' );
+
+        // Konfigurierte Slugs + SportsPress-Primärergebnis (Spalte, die Teaser anzeigen).
+        $target_slugs = $engine->get_target_result_slugs();
+        if ( empty( $target_slugs ) ) {
+            $target_slugs = [ $result_posts[ count( $result_posts ) - 1 ]->post_name ];
+        }
         $primary_slug = $target_slugs[0];
 
         global $wpdb;

@@ -576,6 +576,11 @@ wp-local/
 | `_bbb_match_id`
 | `find_sp_event()`
 
+| Match (Liga-Zuordnung)
+| `sp_event`
+| `_bbb_liga_id` (post_meta)
+| —
+
 | Spieler
 | `sp_player`
 | `_bbb_person_id`
@@ -606,6 +611,12 @@ wp-local/
 | `_bbb_liga_id` (post_meta)
 | `find_sp_table_by_liga_id()`
 |===
+
+**REST-Sichtbarkeit (seit v1.1.10):** Alle oben aufgeführten `_bbb_*`-Meta-Felder sind seit v1.1.10 per `register_post_meta()` / `register_term_meta()` (`includes/class-bbb-meta-registration.php`) für die REST API registriert (`show_in_rest => true` + `auth_callback`). Zuvor lieferte die REST API für diese Felder `rest_no_route`, da mit Unterstrich beginnende Meta-Keys von WordPress als „protected meta" behandelt werden und ohne explizite Registrierung unsichtbar bleiben – auch mit `show_in_rest => true` am Meta-Wert selbst. Ob `sp_team`, `sp_event`, `sp_player`, `sp_list`, `sp_table`, `sp_league` und `sp_venue` selbst (als von SportsPress registrierte Post Types/Taxonomies) `show_in_rest => true` gesetzt haben, liegt außerhalb dieses Plugins und ist hier nicht geprüft – bei Bedarf auf der Live-Site via `GET /wp-json/wp/v2/types` bzw. `GET /wp-json/wp/v2/taxonomies` verifizieren.
+
+**REST-Sichtbarkeit nativer SportsPress-Felder (seit v1.1.11):** Zusätzlich zu den `_bbb_*`-Feldern registriert `BBB_SportsPress_Meta_Registration` (`includes/class-bbb-sportspress-meta-registration.php`) 11 native SportsPress-Meta-Felder für die REST API, die dieses Plugin selbst schreibt: auf `sp_event` – `sp_team`, `sp_player` (Mehrfachwerte), `sp_players` (Spieler-Performance-Stats, verschachtelt), `sp_results`, `sp_status`, `sp_main_result`, `sp_day`, `sp_format`; auf `sp_team` – `sp_abbreviation`, `sp_short_name`, `sp_url`. Grund: seit WP 4.7 muss jedes Meta-Feld explizit registriert werden, um im REST-`meta`-Objekt zu erscheinen – unabhängig vom Unterstrich-Prefix. Typ-Hinweis: `sp_main_result` ist ein `string` (Slug der Haupt-Ergebnis-Spalte, z.B. `pts` oder `t`, und damit Schlüssel in `sp_results`), keine Punktzahl; die Punktzahlen stehen als Strings in `sp_results`. Bewusst ausgeschlossen: Venue-Adress-/Geo-Felder (`sp_address`, `sp_latitude`, `sp_longitude`), da SportsPress diese überwiegend über eine WP-Option `taxonomy_{term_id}` statt echtem Term-Meta speichert (`register_term_meta()` kann Options-Daten nicht erfassen); ebenfalls ausgeschlossen: `sp_format`/`sp_precision` auf `sp_result`-Posts (Konfiguration der Ergebnis-Spalten, keine Spieldaten). Bekannte Einschränkung: `sp_players`/`sp_results` sind als `object`-Typ ohne festes Schema registriert, da ihre Sub-Struktur von der jeweiligen Liga-/Performance-Konfiguration abhängt – ein Schreibversuch über REST kann für genau diese zwei Felder von WP ohne Schema abgelehnt werden. Die tatsächliche REST-Ausgabe ist bisher nicht gegen eine Live-Instanz verifiziert (Unit-Tests mocken `register_post_meta()`); Prüfung nach dem Deployment via `GET /wp-json/wp/v2/sp_event/<id>` (Feld `meta`).
+
+**Ergebnis-Spalten und Teaser-Anzeige (seit v1.1.12):** SportsPress zeigt in Teasern und Event-Blöcken (`event-blocks.php` → `sp_get_main_results_or_time()` → `SP_Event::main_results()`) ausschließlich die Ergebnis-Spalte, deren Slug in der WordPress-Option `sportspress_primary_result` steht; ohne Option gilt die letzte `sp_result`-Spalte (`menu_order` absteigend). Steht der Wert dort nicht, zeigt der Teaser kein Ergebnis, obwohl es im Event-Editor in anderen Spalten steht. Der Sync schreibt das Gesamtergebnis daher in die Vereinigung aus den konfigurierten Slugs (`bbb_sync_result_slugs`) und dem SportsPress-Primärergebnis (`BBB_Sync_Engine::get_target_result_slugs()`); dieselbe Ermittlung nutzt „Ergebnis-Keys reparieren". `BBB_Sync_Engine::get_sportspress_primary_result_slug()` bildet die SportsPress-Logik nach und verwirft eine Option, die auf eine nicht (mehr) vorhandene Spalte zeigt (Fallback: letzte vorhandene Spalte). Einordnung zu `sp_main_result`: Das Feld ist kein SportsPress-Core-Feld und wird dort nicht gelesen; es ist eine Konvention dieses Plugins (Wert: Slug der Haupt-Ergebnis-Spalte, erster konfigurierter Slug bzw. SportsPress-Primärergebnis) und beeinflusst die Teaser nicht. Die Aussage „nativ" aus dem v1.1.11-Absatz oben trifft daher auf `sp_main_result` nicht zu. Grundlage: Quellcodeprüfung von SportsPress `master` (nicht gegen die auf der Live-Instanz installierte Version verifiziert); Theme-Overrides von SportsPress-Templates (z.B. `bigslam`) können abweichen.
 
 === Sync-User
 

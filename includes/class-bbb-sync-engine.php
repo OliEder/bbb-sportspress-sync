@@ -1131,7 +1131,7 @@ class BBB_Sync_Engine {
         // Konfigurierte Slugs: z.B. ['t','pts'] → Gesamtergebnis in beide Spalten schreiben.
         // Basketball-typisch: 't' (Total für Teaser) + 'pts' (Event-Editor).
         $rk        = $this->get_main_result_slug() ?: 'pts'; // Primär-Slug (für sp_main_result).
-        $all_slugs = $this->get_result_slugs();        // Alle konfigurierten Slugs.
+        $all_slugs = $this->get_target_result_slugs(); // Konfigurierte Slugs + SportsPress-Primärergebnis (Teaser).
         if ( empty( $all_slugs ) ) {
 			$all_slugs = [ $rk ]; // Fallback: nur Primär-Slug.
         }
@@ -2172,44 +2172,92 @@ class BBB_Sync_Engine {
      *
      * SportsPress matcht Ergebnis-Keys über den post_name des sp_result Posts.
      * Je nach Installation kann der Slug 'pts', 'punkte', 't', 'total' etc. sein.
-     * Diese Methode nutzt die Einstellungen oder findet den Slug automatisch.
+     * Reihenfolge: erster konfigurierter Slug, sonst das SportsPress-Primärergebnis.
+     * Gibt null zurück, wenn gar keine Ergebnis-Spalte existiert
+     * (ensure_sportspress_setup() legt dann 'pts' an).
      */
     private function get_main_result_slug(): ?string {
         if ( null !== self::$main_result_slug ) {
 			return self::$main_result_slug;
         }
 
-        // 1. Aus Einstellungen: Erster konfigurierter Slug = Primär
+        // 1. Aus Einstellungen: Erster konfigurierter Slug = Primär.
         $slugs = $this->get_result_slugs();
         if ( ! empty( $slugs ) ) {
             self::$main_result_slug = $slugs[0];
             return self::$main_result_slug;
         }
 
-        // 2. Fallback: 'pts' prüfen (unser historischer Standard)
-        $post = get_page_by_path( 'pts', OBJECT, 'sp_result' );
-        if ( $post ) {
-            self::$main_result_slug = 'pts';
-            return 'pts';
-        }
-
-        // 3. Fallback: Ersten sp_result Post nehmen
-        $results = get_posts(
-            [
-				'post_type'      => 'sp_result',
-				'posts_per_page' => 1,
-				'orderby'        => 'menu_order',
-				'order'          => 'ASC',
-				'post_status'    => 'publish',
-			]
-        );
-        if ( ! empty( $results ) ) {
-            self::$main_result_slug = $results[0]->post_name;
-            $this->log( "Result-Slug erkannt: '{$results[0]->post_name}' (Titel: '{$results[0]->post_title}')" );
+        // 2. Fallback: das, was SportsPress selbst in Teasern anzeigt.
+        $primary = $this->get_sportspress_primary_result_slug();
+        if ( null !== $primary ) {
+            self::$main_result_slug = $primary;
             return self::$main_result_slug;
         }
 
         return null;
+    }
+
+    /** @var string|null Gecachter SportsPress-Primär-Slug ('' = keine Ergebnis-Spalte vorhanden). */
+    private static ?string $sp_primary_result_slug = null;
+
+    /**
+     * Slug der Ergebnis-Spalte, die SportsPress in Teasern/Event-Blöcken anzeigt.
+     *
+     * SportsPress liest dafür die Option `sportspress_primary_result`; ohne Option
+     * gilt die letzte Spalte (menu_order absteigend). Verweist die Option auf eine
+     * nicht (mehr) existierende Spalte, wird – anders als in SportsPress – die
+     * letzte vorhandene Spalte genommen, damit wir nie in einen toten Slug schreiben.
+     *
+     * @return string|null Null, wenn keine sp_result-Spalte existiert.
+     */
+    public function get_sportspress_primary_result_slug(): ?string {
+        if ( null !== self::$sp_primary_result_slug ) {
+			return '' === self::$sp_primary_result_slug ? null : self::$sp_primary_result_slug;
+        }
+
+        $slug = '';
+
+        $option = trim( (string) get_option( 'sportspress_primary_result', '' ) );
+        if ( '' !== $option && get_page_by_path( $option, OBJECT, 'sp_result' ) ) {
+            $slug = $option;
+        } else {
+            $last_column = get_posts(
+                [
+					'post_type'      => 'sp_result',
+					'posts_per_page' => 1,
+					'orderby'        => 'menu_order',
+					'order'          => 'DESC',
+					'post_status'    => 'publish',
+				]
+            );
+            if ( ! empty( $last_column ) ) {
+                $slug = (string) $last_column[0]->post_name;
+            }
+        }
+
+        self::$sp_primary_result_slug = $slug;
+        return '' === $slug ? null : $slug;
+    }
+
+    /**
+     * Ergebnis-Spalten, in die der Sync das Spielergebnis schreibt.
+     *
+     * Konfigurierte Slugs (bbb_sync_result_slugs) plus das SportsPress-
+     * Primärergebnis. Letzteres ist die Spalte, die Teaser anzeigen – bleibt sie
+     * leer, zeigt SportsPress dort „N/A“, auch wenn das Ergebnis im Editor steht.
+     *
+     * @return string[]
+     */
+    public function get_target_result_slugs(): array {
+        $slugs   = $this->get_result_slugs();
+        $primary = $this->get_sportspress_primary_result_slug();
+
+        if ( null !== $primary && ! in_array( $primary, $slugs, true ) ) {
+            $slugs[] = $primary;
+        }
+
+        return array_values( $slugs );
     }
 
     /** @var string[]|null Gecachte Result-Slugs aus Einstellungen */
