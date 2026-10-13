@@ -34,6 +34,12 @@
  * abgelehnt werden. Das ist eine bekannte WP-Einschränkung bei dynamischen
  * Strukturen, kein Bug dieser Klasse.
  *
+ * Hinweis zu `sp_main_result`: Dieses Meta-Feld ist kein SportsPress-Core-Feld
+ * (in `SP_Event`, den API-/Template-Funktionen und `event-blocks.php` wird es
+ * nicht gelesen). Es ist eine Konvention dieses Plugins. Welche Spalte
+ * Teaser anzeigen, bestimmt allein die Option `sportspress_primary_result`
+ * – siehe BBB_Sync_Engine::get_sportspress_primary_result_slug().
+ *
  * @since 1.1.11
  */
 

@@ -104,7 +104,7 @@ Teams per Club-ID aus der BBB-API erkennen. Einzeln aktivierbar/deaktivierbar. N
 | Club-ID | – | BBB-Vereins-ID (Pflichtfeld)
 | Zeitraum (Tage) | 365 | Sync-Horizont (30–730)
 | Auto-Sync (h) | 6 | Cron-Intervall (1–168)
-| Ergebnis-Felder | pts | Komma-getrennte SP-Result-Slugs
+| Ergebnis-Felder | pts | Komma-getrennte SP-Result-Slugs; das SportsPress-Primärergebnis wird immer zusätzlich beschrieben
 | Spieler aus Boxscore | Aus | Spieler-Import aktivieren
 | Nur eigene Spieler | An | Nur Spieler eigener Teams importieren (DSGVO-empfohlen)
 | Statistik-Mapping | Standard | Zuordnung BBB → SportsPress Performance-Slugs
@@ -273,7 +273,7 @@ composer install
 docker run --rm -v "$(pwd)":/app -w /app php:8.2-cli vendor/bin/phpunit
 ----
 
-Aktueller Stand (Stand: v1.1.11, 2026-07-19):
+Aktueller Stand (Stand: v1.1.12, 2026-07-19):
 
 [source]
 ----
@@ -282,12 +282,12 @@ PHPUnit 11.5.56 by Sebastian Bergmann and contributors.
 Runtime:       PHP 8.2.32
 Configuration: /app/phpunit.xml.dist
 
-................................................................. 65 / 71 ( 91%)
-......                                                            71 / 71 (100%)
+................................................................. 65 / 82 ( 79%)
+.................                                                 82 / 82 (100%)
 
-Time: 00:00.619, Memory: 24.00 MB
+Time: 00:01.005, Memory: 24.00 MB
 
-OK (71 tests, 313 assertions)
+OK (82 tests, 332 assertions)
 ----
 
 Abgedeckt:
@@ -301,6 +301,11 @@ Abgedeckt:
   `register_post_meta()`, inkl. Mehrfachwert-Felder (`single => false`),
   `object`-Typ-Felder ohne festes Schema und `sp_main_result` als
   String-Slug (9 Tests)
+* `BBB_Sync_Engine::get_sportspress_primary_result_slug()`/
+  `get_target_result_slugs()`/`get_main_result_slug()` – Ermittlung der
+  Ergebnis-Spalten: SportsPress-Primärergebnis (Option bzw. letzte Spalte,
+  tote Slugs werden verworfen), Ziel-Slugs ohne Duplikate, Fallback für
+  `sp_main_result` (11 Tests)
 * `BBB_Sync_Engine::ensure_sp_league()` – Meta-Update bei Erstanlage/Update,
   `_bbb_table_exists` Persistierung (true/false/null) (6 Tests)
 * `BBB_Admin_Page::determine_league_type()` – Liga/Turnier-Ableitung aus
@@ -320,6 +325,26 @@ Abgedeckt:
 
 
 == Changelog
+
+=== v1.1.12 (2026-07-19)
+
+* **Fix: Teaser zeigen das Ergebnis zuverlässig an** – SportsPress zeigt in
+  Teasern und Event-Blöcken nur die Ergebnis-Spalte, die in der Option
+  `sportspress_primary_result` steht (ohne Option: die letzte Spalte). Das
+  Plugin schrieb bisher nur in die selbst konfigurierten Spalten; lag das
+  Primärergebnis nicht darunter, stand das Ergebnis im Editor, der Teaser
+  blieb aber leer. Der Sync und „Ergebnis-Keys reparieren" schreiben jetzt
+  immer zusätzlich in das SportsPress-Primärergebnis
+  (`BBB_Sync_Engine::get_target_result_slugs()`).
+** Der Fallback bei leerer Einstellung entspricht jetzt SportsPress (letzte
+   Spalte statt „erster `sp_result`" bzw. fest `pts`). Verweist die Option auf
+   eine nicht mehr vorhandene Spalte, wird die letzte vorhandene verwendet.
+** Korrektur zu v1.1.11: `sp_main_result` ist kein SportsPress-Core-Feld und
+   wird dort nicht gelesen (geprüft in `SP_Event`, den API-/Template-Funktionen
+   und `event-blocks.php`). Es ist eine Konvention dieses Plugins und hat keinen
+   Einfluss auf die Teaser-Anzeige. Die REST-Registrierung bleibt bestehen.
+** Admin-Hilfetext bei „Ergebnis-Felder" an das tatsächliche Verhalten
+   angepasst.
 
 === v1.1.11 (2026-07-19)
 
